@@ -91,6 +91,37 @@ if (os.path.isfile(full_path_filename_left) and os.path.isfile(full_path_filenam
 
     cv2.imshow("disparity", (disparity_scaled * (255. / max_disparity)).astype(np.uint8));
 
+
+    # do some canny on the right image since it's already b/w
+    imgR = cv2.GaussianBlur(imgR,(9,9),0)
+    # imgR = cv2.Canny(imgR,10,150)
+
+    b, g, r = cv2.split(imgR)
+
+    ttl = imgR.size / 3 #divide by 3 to get the number of image PIXELS
+
+    """b, g, and r are actually numpy.ndarray types,
+    so you need to use the appropriate method to sum
+    all array elements"""
+
+    canny_min, canny_max = 10, 150
+    b = cv2.Canny(b,canny_min,canny_max)
+    g = cv2.Canny(g,canny_min,canny_max)
+    r = cv2.Canny(r,canny_min,canny_max)
+
+
+    imgR = b + g + r
+
+
+
+
+
+
+
+
+
+
+
     # project to a 3D colour point cloud (with or without colour)
 
     # points = project_disparity_to_3d(disparity_scaled, max_disparity);
@@ -112,7 +143,7 @@ if (os.path.isfile(full_path_filename_left) and os.path.isfile(full_path_filenam
     pts = np.array(pts, np.int32);
     pts = pts.reshape((-1,1,2));
 
-    cv2.polylines(imgL,[pts],True,(0,255,255), 3);
+    cv2.polylines(imgL,[pts],True,(0,0,255), 3);
 
     cv2.imshow('left image',imgL)
     cv2.imshow('right image',imgR)

@@ -73,7 +73,11 @@ def project_3D_points_to_2D_image_points(points):
 
 #####################################################################
 
-def computePlanarFitting():
+def computePlanarFitting(points):
+    # Calculating the equation of a plane from 3 points in 3D: http://mathworld.wolfram.com/Plane.html
+    # [Further hint: for this assignment this can be done in full projected floating-point 3D space (X,Y, Z)or in integer image space (x,y,disparity) – see provided hints python file]
+
+
     # points = np.array(....) ... of 3D points
     # ....
 
