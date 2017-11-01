@@ -91,6 +91,7 @@ if (os.path.isfile(full_path_filename_left) and os.path.isfile(full_path_filenam
 
     cv2.imshow("disparity", (disparity_scaled * (255. / max_disparity)).astype(np.uint8));
 
+    # TODO: convert imgR into HSV and perform canny then
 
     # do some canny on the right image since it's already b/w
     imgR = cv2.GaussianBlur(imgR,(9,9),0)
