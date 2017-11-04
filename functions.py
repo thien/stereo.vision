@@ -1,8 +1,14 @@
+import random
+import cv2
+
 # fixed camera parameters for this stereo setup (from calibration)
 
-camera_focal_length_px = 399.9745178222656  # focal length in pixels
-camera_focal_length_m = 4.8 / 1000          # focal length in metres (4.8 mm)
-stereo_camera_baseline_m = 0.2090607502     # camera baseline in metres
+# focal length in pixels
+camera_focal_length_px = 399.9745178222656
+# focal length in metres (4.8 mm) 
+camera_focal_length_m = 4.8 / 1000
+# camera baseline in metres    
+stereo_camera_baseline_m = 0.2090607502
 
 image_centre_h = 262.0;
 image_centre_w = 474.5;
@@ -74,29 +80,52 @@ def project_3D_points_to_2D_image_points(points):
 #####################################################################
 
 def computePlanarFitting(points):
-    # Calculating the equation of a plane from 3 points in 3D: http://mathworld.wolfram.com/Plane.html
-    # [Further hint: for this assignment this can be done in full projected floating-point 3D space (X,Y, Z)or in integer image space (x,y,disparity) – see provided hints python file]
-
-
     # points = np.array(....) ... of 3D points
+
+    # Calculating the equation of a plane from 3 points in 3D: http://mathworld.wolfram.com/Plane.html
+
+    # [Further hint: for this assignment this can be done in full projected floating-point 3D space (X,Y,Z) or in integer image space (x,y,disparity) – see provided hints python file]
+
     # ....
 
     # how to - select 3 non-colinear points
 
     cross_product_check = np.array([0,0,0]);
-    while cross_product_check[0] == 0 and cross_product_check[1] == 0 and cross_product_check[2] == 0:
-        [P1,P2,P3] = points[random.sample(xrange(len(points)), 3)];
+
+    # cross product checks
+    cp_check0 = True if cross_product_check[0] == 0 else False
+    cp_check1 = True if cross_product_check[1] == 0 else False
+    cp_check2 = True if cross_product_check[2] == 0 else False
+    
+    while cp_check0 and cp_check1 and cp_check2:
+
+        [P1,P2,P3] = points[random.sample(xrange(len(points)), 3)]
         # make sure they are non-collinear
-        cross_product_check = np.cross(P1-P2, P2-P3);
+        cross_product_check = np.cross(P1-P2, P2-P3)
 
     # how to - calculate plane coefficients from these points
 
-    coefficients_abc = np.dot(np.linalg.inv(np.array([P1,P2,P3])), np.ones([3,1]))
-    coefficient_d = math.sqrt(coefficients_abc[0]*coefficients_abc[0]+coefficients_abc[1]*coefficients_abc[1]+coefficients_abc[2]*coefficients_abc[2])
+    # calculate coefficents a,b, and c
+    abc = np.dot(np.linalg.inv(np.array([P1,P2,P3])), np.ones([3,1]))
 
-    # how to - measure distance of all points from plane given the plane coefficients calculated
+    # calculate coefficents d
+    d = math.sqrt(abc[0]*abc[0]+abc[1]*abc[1]+abc[2]*abc[2])
 
-    dist = abs((np.dot(points, coefficients_abc) - 1)/coefficient_d)
+    # how to - 
+    # measure distance of all points from plane given 
+    # the plane coefficients calculated
+    dist = abs((np.dot(points, abc) - 1)/d)
+
+    return dist
 
 #####################################################################
 
+def adjust_gamma(image, gamma=1.0):
+    # build a lookup table mapping the pixel values [0, 255] to
+    # their adjusted gamma values
+    invGamma = 1.0 / gamma
+    table = np.array([((i / 255.0) ** invGamma) * 255
+        for i in np.arange(0, 256)]).astype("uint8")
+ 
+    # apply gamma correction using the lookup table
+    return cv2.LUT(image, table)

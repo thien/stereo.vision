@@ -33,7 +33,7 @@ directory_to_cycle_right = "right-images"   # edit this if needed
 full_path_directory_left =  os.path.join(master_path_to_dataset, directory_to_cycle_left);
 full_path_directory_right =  os.path.join(master_path_to_dataset, directory_to_cycle_right);
 
-full_path_filename_left = os.path.join(full_path_directory_left, "1506942480.483420_L.png");
+full_path_filename_left = os.path.join(full_path_directory_left, "1506943133.485891_L.png");
 full_path_filename_right = (full_path_filename_left.replace("left", "right")).replace("_L", "_R");
 
 # setup the disparity stereo processor to find a maximum of 128 disparity values
@@ -48,6 +48,23 @@ print(full_path_filename_left);
 print(full_path_filename_right);
 
 # check the files actually exist
+
+
+
+
+def ransac(image):
+    """
+    Pseudocode:
+
+    for i = 1 : trials:
+        select T data points randomly
+        estimate feature parameters using model
+        if number of data points > V
+        return success
+    return failure
+    """
+
+
 
 if (os.path.isfile(full_path_filename_left) and os.path.isfile(full_path_filename_right)) :
 
@@ -97,21 +114,34 @@ if (os.path.isfile(full_path_filename_left) and os.path.isfile(full_path_filenam
     imgR = cv2.GaussianBlur(imgR,(9,9),0)
     # imgR = cv2.Canny(imgR,10,150)
 
-    b, g, r = cv2.split(imgR)
+    # imgR = f.adjust_gamma(imgR,2)
+    # cv2.cvtColor(imgR, cv2.COLOR_BGR2HSV)
 
-    ttl = imgR.size / 3 #divide by 3 to get the number of image PIXELS
+    # h, s, v = cv2.split(imgR)
 
-    """b, g, and r are actually numpy.ndarray types,
-    so you need to use the appropriate method to sum
-    all array elements"""
+    greyImg = cv2.cvtColor(imgR, cv2.COLOR_BGR2GRAY)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    cl1 = clahe.apply(greyImg)
+    # cv2.imshow('h',greyImg)
+    # cv2.waitKey(0);
+    # b, g, r = cv2.split(imgR)
+
+    # ttl = imgR.size / 3 #divide by 3 to get the number of image PIXELS
+
+    # """b, g, and r are actually numpy.ndarray types,
+    # so you need to use the appropriate method to sum
+    # all array elements"""
 
     canny_min, canny_max = 10, 150
-    b = cv2.Canny(b,canny_min,canny_max)
-    g = cv2.Canny(g,canny_min,canny_max)
-    r = cv2.Canny(r,canny_min,canny_max)
+
+    imgR = cv2.Canny(greyImg,canny_min,canny_max)
+    # imgR = greyImg
+    # b = cv2.Canny(b,canny_min,canny_max)
+    # g = cv2.Canny(g,canny_min,canny_max)
+    # r = cv2.Canny(r,canny_min,canny_max)
 
 
-    imgR = b + g + r
+    # imgR = b + g + r
 
 
 
