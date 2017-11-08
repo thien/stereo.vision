@@ -33,13 +33,13 @@ directory_to_cycle_right = "right-images"   # edit this if needed
 full_path_directory_left =  os.path.join(master_path_to_dataset, directory_to_cycle_left);
 full_path_directory_right =  os.path.join(master_path_to_dataset, directory_to_cycle_right);
 
-full_path_filename_left = os.path.join(full_path_directory_left, "1506943133.485891_L.png");
+full_path_filename_left = os.path.join(full_path_directory_left, "1506942481.483936_L.png");
 full_path_filename_right = (full_path_filename_left.replace("left", "right")).replace("_L", "_R");
 
 # setup the disparity stereo processor to find a maximum of 128 disparity values
 # (adjust parameters if needed - this will effect speed to processing)
 
-max_disparity = 128;
+max_disparity = 32;
 stereoProcessor = cv2.StereoSGBM_create(0, max_disparity, 21);
 
 # for sanity print out these filenames
@@ -59,6 +59,8 @@ def ransac(image):
     for i = 1 : trials:
         select T data points randomly
         estimate feature parameters using model
+            check related colours
+            check lines are close to others
         if number of data points > V
         return success
     return failure
@@ -105,59 +107,20 @@ if (os.path.isfile(full_path_filename_left) and os.path.isfile(full_path_filenam
 
     # display image (scaling it to the full 0->255 range based on the number
     # of disparities in use for the stereo part)
+    some_disp =  (disparity_scaled * (255. / max_disparity)).astype(np.uint8)
+    cv2.imshow("disparity", some_disp);
 
-    cv2.imshow("disparity", (disparity_scaled * (255. / max_disparity)).astype(np.uint8));
-
-    # TODO: convert imgR into HSV and perform canny then
-
-    # do some canny on the right image since it's already b/w
-    imgR = cv2.GaussianBlur(imgR,(9,9),0)
-    # imgR = cv2.Canny(imgR,10,150)
-
-    # imgR = f.adjust_gamma(imgR,2)
-    # cv2.cvtColor(imgR, cv2.COLOR_BGR2HSV)
-
-    # h, s, v = cv2.split(imgR)
-
-    greyImg = cv2.cvtColor(imgR, cv2.COLOR_BGR2GRAY)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-    cl1 = clahe.apply(greyImg)
-    # cv2.imshow('h',greyImg)
-    # cv2.waitKey(0);
-    # b, g, r = cv2.split(imgR)
-
-    # ttl = imgR.size / 3 #divide by 3 to get the number of image PIXELS
-
-    # """b, g, and r are actually numpy.ndarray types,
-    # so you need to use the appropriate method to sum
-    # all array elements"""
-
-    canny_min, canny_max = 10, 150
-
-    imgR = cv2.Canny(greyImg,canny_min,canny_max)
-    # imgR = greyImg
-    # b = cv2.Canny(b,canny_min,canny_max)
-    # g = cv2.Canny(g,canny_min,canny_max)
-    # r = cv2.Canny(r,canny_min,canny_max)
-
-
-    # imgR = b + g + r
-
-
-
-
-
-
-
-
-
-
-
+    # imgL = cv2.addWeighted(imgL,0.7,some_disp,0.3,0)
+    # imgR = cv2.addWeighted(imgR,0.7,some_disp,0.3,0)
+    # print(disparity.shape)
+    # print(grayR.shape)
+    # cv2.add(grayR, disparity)
+    # grayR = cv2.addWeighted(grayR,0.7,disparity,0.3,0)
     # project to a 3D colour point cloud (with or without colour)
 
     # points = project_disparity_to_3d(disparity_scaled, max_disparity);
     points = f.project_disparity_to_3d(disparity_scaled, max_disparity, imgL);
-
+    print(points[0])
     # write to file in an X simple ASCII X Y Z format that can be viewed in 3D
     # using the on-line viewer at http://lidarview.com/
     # (by uploading, selecting X Y Z format, press render , rotating the view)
@@ -177,7 +140,9 @@ if (os.path.isfile(full_path_filename_left) and os.path.isfile(full_path_filenam
     cv2.polylines(imgL,[pts],True,(0,0,255), 3);
 
     cv2.imshow('left image',imgL)
-    cv2.imshow('right image',imgR)
+    # cv2.imshow('right image',imgR)
+    # cv2.imshow('left image',grayL)
+    # cv2.imshow('right image',grayR)
 
     # wait for a key press to exit
 

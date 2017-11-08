@@ -79,6 +79,7 @@ stereoProcessor = cv2.StereoSGBM_create(0, max_disparity, 21);
 
 # Start the loop
 try:
+    previousDisparity = None
     for filename_l in filelist_l:
         """
         Here we'll cycle through the files, and finding each stereo pair.
@@ -113,13 +114,6 @@ try:
             print(full_path_filename_l);
             print(full_path_filename_r);
             print();
-
-            # ● Furthermore, for each image file it encounters in the directory listing it must display the following to standard output:
-                # filename_L.png
-                # filename_R.png : road surface normal (a, b, c)
-
-
-            # where “filename” is the current image filename and (a, b, c) are the normalized surface normal coefficients of the road plane that has been detected. When no road plane region can be detected output a zero vector. Your final program must run through all the files as a “batch” without requiring a user key press or similar.
 
             print("-- files loaded successfully");
             print();
@@ -160,42 +154,25 @@ try:
             # display image (scaling it to the full 0->255 range based on the number
             # of disparities in use for the stereo part)
 
+            # fill the empty parts in disparity
+            if previousDisparity is not None:
+            #     for i in range(0,len(disparity_scaled)):
+            #         for j in range(0,len(disparity_scaled[i])):
+            #             if disparity_scaled[i][j] == 0:
+            #                 disparity_scaled[i][j] = previousDisparity[i][j]
+                ret, mask = cv2.threshold(disparity_scaled, 5, 255, cv2.THRESH_BINARY)
+                mask = cv2.bitwise_not(mask)
+
+                # Take only region of logo from logo image.
+                filling = cv2.bitwise_and(previousDisparity,previousDisparity,mask = mask)
+                disparity_scaled = cv2.add(disparity_scaled,filling)
+                cv2.imshow("original Image",imgL)
             cv2.imshow("disparity", (disparity_scaled * (256. / max_disparity)).astype(np.uint8));
 
 
-            # project to a 3D colour point cloud (with or without colour)
-
-            # ● When the road surface plane are detected within a stereo image it must display a red polygon on the left (colour) image highlighting where the road plane has been detected as shown in Figure 1 (see the drawing examples in the OpenCV Python Lab exercises).
-
-            points = f.project_disparity_to_3d(disparity_scaled, max_disparity, imgL);
-
-            # write to file in an X simple ASCII X Y Z format that can be viewed in 3D
-            # using the on-line viewer at http://lidarview.com/
-            # (by uploading, selecting X Y Z format, press render , rotating the view)
-
-            point_cloud_file = open('3d_points.txt', 'w');
-            csv_writer = csv.writer(point_cloud_file, delimiter=' ');
-            csv_writer.writerows(points);
-            point_cloud_file.close();
-
-            # select a random subset of the 3D points (4 in total)
-            # and them project back to the 2D image (as an example)
-
-            pts = f.project_3D_points_to_2D_image_points(random.sample(points, 4));
-            pts = np.array(pts, np.int32);
-            pts = pts.reshape((-1,1,2));
-
-            cv2.polylines(imgL,[pts],True,(0,255,255), 3);
-
-            cv2.imshow('left image',imgL)
-            cv2.imshow('right image',imgR)
-
-            # ● For the purposes of this assignment when a road has either curved road edges or other complexities due to the road configuration (e.g. junctions, roundabouts, road type, occlusions) report and display the road boundaries as far as possible using a polygon or an alternative pixel-wise boundary.
-
-            # You may use any heuristics you wish to aid/filter/adjust your approach but RANSAC must be central to the detection you perform.
-
-            # ● Your program must compile and work with OpenCV 3.3 on the lab PCs.
             ex.handleKey(cv2, pause_playback, disparity_scaled, imgL, imgR, crop_disparity)
+            # store the disparity
+            previousDisparity = disparity_scaled
         else:
             print("-- files skipped (perhaps one is missing or not PNG)");
 

@@ -17,42 +17,28 @@ image_centre_w = 474.5;
 ## (uncropped, unscaled) to a set of 3D points with optional colour
 
 def project_disparity_to_3d(disparity, max_disparity, rgb=[]):
-
+    # list of points
     points = [];
-
     f = camera_focal_length_px;
     B = stereo_camera_baseline_m;
-
     height, width = disparity.shape[:2];
-
     # assume a minimal disparity of 2 pixels is possible to get Zmax
     # and then get reasonable scaling in X and Y output
-
     Zmax = ((f * B) / 2);
-
     for y in range(height): # 0 - height is the y axis index
         for x in range(width): # 0 - width is the x axis index
-
             # if we have a valid non-zero disparity
-
             if (disparity[y,x] > 0):
-
                 # calculate corresponding 3D point [X, Y, Z]
-
                 # stereo lecture - slide 22 + 25
-
                 Z = (f * B) / disparity[y,x];
-
                 X = ((x - image_centre_w) * Zmax) / f;
                 Y = ((y - image_centre_h) * Zmax) / f;
-
                 # add to points
-
                 if(rgb.size > 0):
                     points.append([X,Y,Z,rgb[y,x,2], rgb[y,x,1],rgb[y,x,0]]);
                 else:
                     points.append([X,Y,Z]);
-
     return points;
 
 #####################################################################
@@ -60,34 +46,24 @@ def project_disparity_to_3d(disparity, max_disparity, rgb=[]):
 # project a set of 3D points back the 2D image domain
 
 def project_3D_points_to_2D_image_points(points):
-
     points2 = [];
-
     # calc. Zmax as per above
-
     Zmax = (camera_focal_length_px * stereo_camera_baseline_m) / 2;
-
     for i1 in range(len(points)):
-
         # reverse earlier projection for X and Y to get x and y again
-
         x = ((points[i1][0] * camera_focal_length_px) / Zmax) + image_centre_w;
         y = ((points[i1][1] * camera_focal_length_px) / Zmax) + image_centre_h;
         points2.append([x,y]);
-
     return points2;
 
 #####################################################################
 
 def computePlanarFitting(points):
+    # https://math.stackexchange.com/questions/99299/best-fitting-plane-given-a-set-of-points
     # points = np.array(....) ... of 3D points
-
     # Calculating the equation of a plane from 3 points in 3D: http://mathworld.wolfram.com/Plane.html
-
     # [Further hint: for this assignment this can be done in full projected floating-point 3D space (X,Y,Z) or in integer image space (x,y,disparity) – see provided hints python file]
-
     # ....
-
     # how to - select 3 non-colinear points
 
     cross_product_check = np.array([0,0,0]);
