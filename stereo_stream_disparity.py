@@ -77,6 +77,9 @@ filelist_l = sorted(os.listdir(path_dir_l));
 max_disparity = 32;
 stereoProcessor = cv2.StereoSGBM_create(0, max_disparity, 21);
 
+carmask = cv2.imread("mask.png", cv2.IMREAD_COLOR)
+carmask = cv2.cvtColor(carmask,cv2.COLOR_BGR2GRAY);
+
 # Start the loop
 try:
     previousDisparity = None
@@ -123,11 +126,14 @@ try:
 
             grayL = cv2.cvtColor(imgL,cv2.COLOR_BGR2GRAY);
             grayR = cv2.cvtColor(imgR,cv2.COLOR_BGR2GRAY);
-
+            #  grayL = cv2.bitwise_and(grayL,grayL,mask = carmask)
+            # grayR = cv2.bitwise_and(grayR,grayR,mask = carmask)
             # compute disparity image from undistorted and rectified stereo images that we have loaded
             # (which for reasons best known to the OpenCV developers is returned scaled by 16)
 
             disparity = stereoProcessor.compute(grayL,grayR);
+ 
+            disparity = cv2.bitwise_and(disparity,disparity,mask = carmask)
 
             # filter out noise and speckles (adjust parameters as needed)
 
@@ -160,7 +166,7 @@ try:
             #         for j in range(0,len(disparity_scaled[i])):
             #             if disparity_scaled[i][j] == 0:
             #                 disparity_scaled[i][j] = previousDisparity[i][j]
-                ret, mask = cv2.threshold(disparity_scaled, 5, 255, cv2.THRESH_BINARY)
+                ret, mask = cv2.threshold(disparity_scaled, 2, 255, cv2.THRESH_BINARY)
                 mask = cv2.bitwise_not(mask)
 
                 # Take only region of logo from logo image.
