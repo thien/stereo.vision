@@ -16,29 +16,25 @@ Task Specification – Road Surface Region Detection
 
     Additionally, some example images may not have significant noise-free disparity (depth) available in front of the vehicle or the road region may be partially occluded by other objects (people, vehicles etc.). The road surface itself will change in terrain type, illumination conditions and road markings – ideally your solution should be able to cope with all of these. Road edges may or may not be marked by line markings in the colour image. All examples will contain a clear front facing view of the road in front of the vehicle only – your system should report all appropriate road surface plane instances it can detect recognising this may not be possible for all cases within the data set provided.
 """
-
-
 """
-http://resources.mpi-inf.mpg.de/TemporalStereo/articleJpeg.pdf
-Method:
-- optimise disparity
-- do a mask on the disparity
-- do stereo to 3D
-- delete coordinates of points that are blank
-- planar fitting ransac
-- create a plane accordingly
-- create polygon of points near the plane
-- map polygon of points on the plane
-    - convex hull
-- show coefficents on the image
-
+    http://resources.mpi-inf.mpg.de/TemporalStereo/articleJpeg.pdf
+    Method:
+    - optimise disparity
+    - do a mask on the disparity
+    - do stereo to 3D
+    - delete coordinates of points that are blank
+    - planar fitting ransac
+    - create a plane accordingly
+    - create polygon of points near the plane
+    - map polygon of points on the plane
+        - convex hull
+    - show coefficents on the image
 """
 # imports, don't touch them lol
 import cv2
 import os
 import random
 import numpy as np
-import extra as ex
 import csv
 import functions as f
 
@@ -55,30 +51,25 @@ directory_to_cycle_right = "right-images";
 # e.g. set to 1506943191.487683 for the end of the Bailey, just as the vehicle turns
 skip_forward_file_pattern = "";
 
-# display full or cropped disparity image
-crop_disparity = False;
-# pause until key press after each image
-pause_playback = False;
+crop_disparity = False;     # display full or cropped disparity image
+pause_playback = False;     # pause until key press after each image
 
-
-#####################################################################
+# ---------------------------------------------------------------------------
 
 # resolve full directory location of data set for left / right images
-
 path_dir_l =  os.path.join(dataset_path, directory_to_cycle_left);
 path_dir_r =  os.path.join(dataset_path, directory_to_cycle_right);
 
 # get a list of the left image files and sort them (by timestamp in filename)
-
 filelist_l = sorted(os.listdir(path_dir_l));
 
 # setup the disparity stereo processor to find a maximum of 128 disparity values
 # (adjust parameters if needed - this will effect speed to processing)
 max_disparity = 32;
-stereoProcessor = cv2.StereoSGBM_create(0, max_disparity, 21);
 
 # Start the loop
 try:
+    previousDisparity = None
     for filename_l in filelist_l:
         """
         Here we'll cycle through the files, and finding each stereo pair.
@@ -92,110 +83,50 @@ try:
         elif ((len(skip_forward_file_pattern) > 0) and (skip_forward_file_pattern in filename_l)):
             skip_forward_file_pattern = "";
 
-        # from the left image filename get the correspondoning right image
-
-        filename_right = filename_l.replace("_L", "_R");
-        full_path_filename_l = os.path.join(path_dir_l, filename_l);
-        full_path_filename_r = os.path.join(path_dir_r, filename_right);
-
-        # check the file is a PNG file (left) and check a correspondoning right image actually exists
-
-        if ('.png' in filename_l) and (os.path.isfile(full_path_filename_r)) :
-
-            # read left and right images and display in windows
-            # N.B. despite one being grayscale both are in fact stored as 3-channel
-            # RGB images so load both as such
-
-            imgL = cv2.imread(full_path_filename_l, cv2.IMREAD_COLOR)
-            imgR = cv2.imread(full_path_filename_r, cv2.IMREAD_COLOR)
-
-            # for sanity print out these filenames
-            print(full_path_filename_l);
-            print(full_path_filename_r);
-            print();
+        # # from the left image filename get the corresponding right image
+        imageStores = f.loadImages(filename_l, path_dir_l, path_dir_r)
+        if imageStores != False:
+            imgL, imgR = imageStores
 
             # ● Furthermore, for each image file it encounters in the directory listing it must display the following to standard output:
                 # filename_L.png
                 # filename_R.png : road surface normal (a, b, c)
 
-
-            # where “filename” is the current image filename and (a, b, c) are the normalized surface normal coefficients of the road plane that has been detected. When no road plane region can be detected output a zero vector. Your final program must run through all the files as a “batch” without requiring a user key press or similar.
-
-            print("-- files loaded successfully");
-            print();
-
-            # remember to convert to grayscale (as the disparity matching works on grayscale)
-            # N.B. need to do for both as both are 3-channel images
-
-            grayL = cv2.cvtColor(imgL,cv2.COLOR_BGR2GRAY);
-            grayR = cv2.cvtColor(imgR,cv2.COLOR_BGR2GRAY);
+            grayL, grayR = f.preProcessImages(imgL,imgR)
 
             # compute disparity image from undistorted and rectified stereo images that we have loaded
-            # (which for reasons best known to the OpenCV developers is returned scaled by 16)
+            disparity = f.disparity(grayL, grayR, max_disparity, crop_disparity)
 
-            disparity = stereoProcessor.compute(grayL,grayR);
-
-            # filter out noise and speckles (adjust parameters as needed)
-
-            dispNoiseFilter = 5; # increase for more agressive filtering
-            cv2.filterSpeckles(disparity, 0, 4000, max_disparity - dispNoiseFilter);
-
-            # scale the disparity to 8-bit for viewing
-            # divide by 16 and convert to 8-bit image (then range of values should
-            # be 0 -> max_disparity) but in fact is (-1 -> max_disparity - 1)
-            # so we fix this also using a initial threshold between 0 and max_disparity
-            # as disparity=-1 means no disparity available
-
-            _, disparity = cv2.threshold(disparity,0, max_disparity * 16, cv2.THRESH_TOZERO);
-            disparity_scaled = (disparity / 16.).astype(np.uint8);
-
-            # crop disparity to chop out left part where there are with no disparity
-            # as this area is not seen by both cameras and also
-            # chop out the bottom area (where we see the front of car bonnet)
-
-            if (crop_disparity):
-                width = np.size(disparity_scaled, 1);
-                disparity_scaled = disparity_scaled[0:390,135:width];
-
-            # display image (scaling it to the full 0->255 range based on the number
-            # of disparities in use for the stereo part)
-
-            cv2.imshow("disparity", (disparity_scaled * (256. / max_disparity)).astype(np.uint8));
-
+            # show disparity
+            cv2.imshow("disparity", disparity);
 
             # project to a 3D colour point cloud (with or without colour)
 
             # ● When the road surface plane are detected within a stereo image it must display a red polygon on the left (colour) image highlighting where the road plane has been detected as shown in Figure 1 (see the drawing examples in the OpenCV Python Lab exercises).
+            # points = f.projectDisparityTo3d(disparity, max_disparity, imgL);
 
-            points = f.project_disparity_to_3d(disparity_scaled, max_disparity, imgL);
+            # # write to file in an X simple ASCII X Y Z format that can be viewed in 3D
+            # # using the on-line viewer at http://lidarview.com/
+            # # (by uploading, selecting X Y Z format, press render , rotating the view)
+            # f.saveCoords(points, '3d_points.txt')
 
-            # write to file in an X simple ASCII X Y Z format that can be viewed in 3D
-            # using the on-line viewer at http://lidarview.com/
-            # (by uploading, selecting X Y Z format, press render , rotating the view)
+            # # select a random subset of the 3D points (4 in total)
+            # # and them project back to the 2D image (as an example)
+            # # ● For the purposes of this assignment when a road has either curved road edges or other complexities due to the road configuration (e.g. junctions, roundabouts, road type, occlusions) report and display the road boundaries as far as possible using a polygon or an alternative pixel-wise boundary.
 
-            point_cloud_file = open('3d_points.txt', 'w');
-            csv_writer = csv.writer(point_cloud_file, delimiter=' ');
-            csv_writer.writerows(points);
-            point_cloud_file.close();
+            # # You may use any heuristics you wish to aid/filter/adjust your approach but RANSAC must be central to the detection you perform.
 
-            # select a random subset of the 3D points (4 in total)
-            # and them project back to the 2D image (as an example)
+            # pts = f.project3DPointsTo2DImagePoints(random.sample(points, 4));
+            # pts = np.array(pts, np.int32);
+            # pts = pts.reshape((-1,1,2));
 
-            pts = f.project_3D_points_to_2D_image_points(random.sample(points, 4));
-            pts = np.array(pts, np.int32);
-            pts = pts.reshape((-1,1,2));
-
-            cv2.polylines(imgL,[pts],True,(0,255,255), 3);
+            # cv2.polylines(imgL,[pts],True,(0,255,255), 3);
 
             cv2.imshow('left image',imgL)
-            cv2.imshow('right image',imgR)
-
-            # ● For the purposes of this assignment when a road has either curved road edges or other complexities due to the road configuration (e.g. junctions, roundabouts, road type, occlusions) report and display the road boundaries as far as possible using a polygon or an alternative pixel-wise boundary.
-
-            # You may use any heuristics you wish to aid/filter/adjust your approach but RANSAC must be central to the detection you perform.
+            # cv2.imshow('right image',imgR)
 
             # ● Your program must compile and work with OpenCV 3.3 on the lab PCs.
-            ex.handleKey(cv2, pause_playback, disparity_scaled, imgL, imgR, crop_disparity)
+            f.handleKey(cv2, pause_playback, disparity, imgL, imgR, crop_disparity)
         else:
             print("-- files skipped (perhaps one is missing or not PNG)");
 
