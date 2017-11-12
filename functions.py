@@ -319,12 +319,12 @@ def ransac(points, trials):
         return success
     return failure
 
-
-    Take 3 random points from the population
-    Calculate the plane defined by the 3 points
-    Sum the errors (distance to plane) for all of the points to that plane.
-    Keep the 3 points that show the smallest sum of errors (and fall within a threshold).
-    Repeat N iterations (see RANSAC theory to choose N, may I suggest 50?)
+    In computer vision a standard way is to use RANSAC or MSAC, in your case;
+        Take 3 random points from the population
+        Calculate the plane defined by the 3 points
+        Sum the errors (distance to plane) for all of the points to that plane.
+        Keep the 3 points that show the smallest sum of errors (and fall within a threshold).
+        Repeat N iterations (see RANSAC theory to choose N, may I suggest 50?)
     """
 
     for i in range(1,trials):
