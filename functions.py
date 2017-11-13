@@ -363,7 +363,7 @@ def RANSAC(points, trials):
     keylist = sorted(planes)
     # planes = sorted(planes.iterkeys())
     the_plane = planes[keylist[0]]
-    print(the_plane)
+    # print(the_plane)
     return the_plane
 
 # -------------------------------------------------------------------
