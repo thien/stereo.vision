@@ -1,4 +1,5 @@
 import cv2
+import math
 import numpy as np
 import random
 import os
@@ -184,6 +185,7 @@ def performCanny(image):
 # project_disparity_to_3d : project a given disparity image
 # (uncropped, unscaled) to a set of 3D points with optional colour
 def projectDisparityTo3d(disparity, max_disparity, rgb=[]):
+    # print("projecting disparity")
     # list of points
     points = [];
     f = camera_focal_length_px;
@@ -244,24 +246,53 @@ def soupedUpPlaneFitting(points):
     # transpose B so we can matrix operation for quicktimes
     b = np.matrix(matB).T 
     
-    fit = (A.T * A).I * A.T * b
+    abc = (A.T * A).I * A.T * b
     # calculate errors for each point
-    errors = b - A * fit    
+    errors = b - A * abc
     # at this stage we should throw away coordinates that
     # have a large enough error rate.
 
-    print ("%f x + %f y + %f = z" % (fit[0], fit[1], fit[2]))
+    # print ("%f x + %f y + %f = z" % (abc[0], abc[1], abc[2]))
     
     # calculating the normal of this plane.
-    normal = (fit[0],fit[1],-1)
+    normal = (abc[0],abc[1],-1)
     nn = np.linalg.norm(normal)
     normal = normal / nn
-    print("Normal:", normal)
+    # print("Normal:", normal)
     # calculate average error value here.
-    errorValue = np.average(errors)
-    print ("Plane Error Average:",errorValue)
-    return False
+    # errorValue = np.average(errors)
+    # calculate sum of errors
+    errorSum = np.sum(errors)
+    # print ("Plane Error Average:",errorValue)
+    return (errorSum, normal, abc)
  
+def calculatePointErrors(abc, points):
+    the_list = []
+    for i in points:
+        p = [i[0],i[1],i[2]]
+        # print(p)
+        the_list.append(p)
+    points = np.array(the_list)
+
+    # calculate coefficents d
+    d = math.sqrt(abc[0]*abc[0]+abc[1]*abc[1]+abc[2]*abc[2])
+
+    # measure distance of all points from plane given 
+    # the plane coefficients calculated
+    dist = abs((np.dot(points, abc) - 1)/d)
+    return dist
+
+def computePlanarThreshold(points,differences,threshold=0.01):
+    """
+        Discards points on the disparity where it is not within the plane.
+    """
+    new_points = []
+    for i in range(len(points)):
+        # we only keep points that are within the threshold.
+        if differences[i] < threshold:
+            new_points.append(points[i])
+    return new_points
+
 def computePlanarFitting(points):
     # points = np.array(....) ... of 3D points
 
@@ -302,24 +333,14 @@ def computePlanarFitting(points):
 
     return dist
 
-def 
+
 # -------------------------------------------------------------------
 
 # Your solution must use a RANdom SAmple and Consensus (RANSAC) approach to perform the detection of the 3D plane in front of the vehicle (when and where possible).
 
-def ransac(points, trials):
+def RANSAC(points, trials):
     """
-    Pseudocode:
-
-    for i = 1 : trials:
-        select T data points randomly
-        estimate feature parameters using model
-            check lines are close to others
-        if number of data points > V
-        return success
-    return failure
-
-    In computer vision a standard way is to use RANSAC or MSAC, in your case;
+        In computer vision a standard way is to use RANSAC or MSAC, in your case;
         Take 3 random points from the population
         Calculate the plane defined by the 3 points
         Sum the errors (distance to plane) for all of the points to that plane.
@@ -327,23 +348,23 @@ def ransac(points, trials):
         Repeat N iterations (see RANSAC theory to choose N, may I suggest 50?)
     """
 
+    planes = {}
     for i in range(1,trials):
         # select T data points randomly
         T = random.sample(points, 8)
+        # print("we have points",T)
         # estimate feature parameters using this model
-        dist = computePlanarFitting(T)
-        # in this example we'll see whether this plane can
-        # fit the points that we know are floorbound.
-        floorPoints = 100
-        ratio = len(floor)
-
-        # this variable represents the plane.
-        plane = False
-        computedMatchingPoints = calculatePlaneError(plane, points)
-        threshold = 0.2
-        if (computedMatchingPoints/floorPoints) + 0.2 > 1:
-            return True
-    return False
+        # (errors, normal, coefficents)
+        error, normal, abc = soupedUpPlaneFitting(T)
+        # errorRate = computePlanarFitting(points)
+        planes[error] = (normal, abc)
+    
+    # get the plane with the smallest errors
+    keylist = sorted(planes)
+    # planes = sorted(planes.iterkeys())
+    the_plane = planes[keylist[0]]
+    print(the_plane)
+    return the_plane
 
 # -------------------------------------------------------------------
 
