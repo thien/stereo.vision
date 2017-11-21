@@ -22,6 +22,7 @@ stereoProcessor = cv2.StereoSGBM_create(0, max_disparity, 21);
 # and ready for when they are needed on an image.
 car_front_mask = cv2.imread("masks/car_front_mask.png", cv2.IMREAD_GRAYSCALE);
 view_range = cv2.imread("masks/view_range.png", cv2.IMREAD_GRAYSCALE);
+plane_sample = cv2.imread("masks/plane_sample.png", cv2.IMREAD_GRAYSCALE);
 carmask = cv2.bitwise_and(car_front_mask,car_front_mask,mask = view_range)
 
 # -------------------------------------------------------------------
@@ -160,6 +161,10 @@ def fillDisparity(disparity, previousDisparity):
         disparity = cv2.add(disparity,filling)
     return disparity
 
+
+def baseMaskDisp(disparity):
+    disparity = cv2.bitwise_and(disparity,disparity,mask = plane_sample)
+    return disparity
 # -------------------------------------------------------------------
 
 # removes artifacts.
@@ -185,7 +190,7 @@ def performCanny(image):
 # project_disparity_to_3d : project a given disparity image
 # (uncropped, unscaled) to a set of 3D points with optional colour
 def projectDisparityTo3d(disparity, max_disparity, rgb=[]):
-    # print("projecting disparity")
+    print("projecting disparity")
     # list of points
     points = [];
     f = camera_focal_length_px;
@@ -193,7 +198,7 @@ def projectDisparityTo3d(disparity, max_disparity, rgb=[]):
     height, width = disparity.shape[:2];
     # assume a minimal disparity of 2 pixels is possible to get Zmax
     # and then get reasonable scaling in X and Y output
-    Zmax = ((f * B) / 2);
+    # Zmax = ((f * B) / 2);
     for y in range(height): # 0 - height is the y axis index
         for x in range(width): # 0 - width is the x axis index
             # if we have a valid non-zero disparity
@@ -201,14 +206,15 @@ def projectDisparityTo3d(disparity, max_disparity, rgb=[]):
                 # calculate corresponding 3D point [X, Y, Z]
                 # stereo lecture - slide 22 + 25
                 Z = (f * B) / disparity[y,x];
-                X = ((x - image_centre_w) * Zmax) / f;
-                Y = ((y - image_centre_h) * Zmax) / f;
+                X = ((x - image_centre_w) * Z) / f;
+                Y = ((y - image_centre_h) * Z) / f;
                 # print(x,y,z)
                 # add to points
-                if(rgb.size > 0):
-                    points.append([X,Y,Z,rgb[y,x,2], rgb[y,x,1],rgb[y,x,0]]);
-                else:
-                    points.append([X,Y,Z]);
+                if Y < 0.1:
+                    if(len(rgb) > 0):
+                        points.append([X,Y,Z,rgb[y,x,2], rgb[y,x,1],rgb[y,x,0]]);
+                    else:
+                        points.append([X,Y,Z]);
     return points;
 
 # -------------------------------------------------------------------
@@ -217,15 +223,39 @@ def projectDisparityTo3d(disparity, max_disparity, rgb=[]):
 def project3DPointsTo2DImagePoints(points):
     points2 = [];
     # calc. Zmax as per above
-    Zmax = (camera_focal_length_px * stereo_camera_baseline_m) / 2;
+    # Zmax = (camera_focal_length_px * stereo_camera_baseline_m) / 2;
     for i1 in range(len(points)):
         # reverse earlier projection for X and Y to get x and y again
-        x = ((points[i1][0] * camera_focal_length_px) / Zmax) + image_centre_w;
-        y = ((points[i1][1] * camera_focal_length_px) / Zmax) + image_centre_h;
+        Z = points[i1][2]
+        x = ((points[i1][0] * camera_focal_length_px) / Z) + image_centre_w;
+        y = ((points[i1][1] * camera_focal_length_px) / Z) + image_centre_h;
         points2.append([x,y]);
     return points2;
 
 # -------------------------------------------------------------------
+
+def printVectorPlane(plane=[]):
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+
+    point  = np.array([1, 2, 3])
+    normal = np.array([1, 1, 2])
+
+    # a plane is a*x+b*y+c*z+d=0
+    # [a,b,c] is the normal. Thus, we have to calculate
+    # d and we're set
+    d = -point.dot(normal)
+
+    # create x,y
+    xx, yy = np.meshgrid(range(10), range(10))
+
+    # calculate corresponding z
+    z = (-normal[0] * xx - normal[1] * yy - d) * 1. /normal[2]
+
+    # plot the surface
+    plt3d = plt.figure().gca(projection='3d')
+    plt3d.plot_surface(xx, yy, z)
+    plt.show()
 
 # select a random subset of the 3D points (4 in total)
 # and them project back to the 2D image (as an example)
@@ -233,39 +263,99 @@ def project3DPointsTo2DImagePoints(points):
 
 # You may use any heuristics you wish to aid/filter/adjust your approach but RANSAC must be central to the detection you perform.
 
-def soupedUpPlaneFitting(points):
-    # perform fitting algorithm
-    matA = []
-    matB = []
+# http://pathfinder.engin.umich.edu/documents/Feng&Taguchi&Kamat.ICRA.2014.pdf
+# http://web.ipac.caltech.edu/staff/fmasci/home/astro_refs/HoughTrans_lines_09.pdf
+# https://stackoverflow.com/questions/18255958/harris-corner-detection-and-localization-in-opencv-with-python
+# https://stackoverflow.com/questions/32609098/how-to-fast-change-image-brightness-with-python-opencv
 
-    for i in range(len(points)):
-        matA.append([points[i][0], points[i][1], 1])
-        matB.append(points[i][2])
 
-    A = np.matrix(matA)
-    # transpose B so we can matrix operation for quicktimes
-    b = np.matrix(matB).T 
+def randomNonCollinearPoints(points):
+    # print("Calculating Non CollinearPoints")
+    # ---------------------------------------------------------------
+    # how to - select 3 non-colinear points
+    cross_product_check = np.array([0,0,0]);
+
+    # cross product checks
+    cp_check0 = True if cross_product_check[0] == 0 else False
+    cp_check1 = True if cross_product_check[1] == 0 else False
+    cp_check2 = True if cross_product_check[2] == 0 else False
     
-    abc = (A.T * A).I * A.T * b
-    # calculate errors for each point
-    errors = b - A * abc
-    # at this stage we should throw away coordinates that
-    # have a large enough error rate.
+    P1 = None
+    P2 = None
+    P3 = None
 
-    # print ("%f x + %f y + %f = z" % (abc[0], abc[1], abc[2]))
+    while cp_check0 and cp_check1 and cp_check2:
+        P1 = np.array([x[:3] for x in random.sample(points, 1)])[0]
+        P2 = np.array([x[:3] for x in random.sample(points, 1)])[0]
+        P3 = np.array([x[:3] for x in random.sample(points, 1)])[0]
+        # make sure they are non-collinear
+        # print("Checking for colineararity..")
+        cross_product_check = np.cross(P1-P2, P2-P3)
+
+        cp_check0 = True if cross_product_check[0] == 0 else False
+        cp_check1 = True if cross_product_check[1] == 0 else False
+        cp_check2 = True if cross_product_check[2] == 0 else False
+    # print("Calculated Non-Colinear Points.")
+    return (P1, P2, P3)
+
+def computeGoodPlanarFitting(randomPoints, points):
+
+    # https://math.stackexchange.com/questions/99299/best-fitting-plane-given-a-set-of-points
+    # Calculating the equation of a plane from 3 points in 3D: http://mathworld.wolfram.com/Plane.html
+
+
+    # [Further hint: for this assignment this can be done in full projected floating-point 3D space (X,Y,Z) or in integer image space (x,y,disparity) – see provided hints python file]
     
-    # calculating the normal of this plane.
+    # generate random colinear points.
+    # Here we choose from the whole point range
+    P1, P2, P3 = randomNonCollinearPoints(points)
+
+    # now we can calculate plane coefficients from these points
+
+    # calculate coefficents a,b, and c
+    abc = np.dot(np.linalg.inv(np.array([P1,P2,P3])), np.ones([3,1]))
+
+    # calculate coefficents d
+    d = math.sqrt(abc[0]*abc[0]+abc[1]*abc[1]+abc[2]*abc[2])
+
+    # measure distance of our random points from plane given 
+    # the plane coefficients calculated
+    dist = abs((np.dot(randomPoints, abc) - 1)/d)
+
+    # calculate the normal
     normal = (abc[0],abc[1],-1)
     nn = np.linalg.norm(normal)
     normal = normal / nn
-    # print("Normal:", normal)
-    # calculate average error value here.
-    # errorValue = np.average(errors)
-    # calculate sum of errors
-    errorSum = np.sum(errors)
-    # print ("Plane Error Average:",errorValue)
-    return (errorSum, normal, abc)
- 
+
+    return abc, normal, dist
+
+# http://web.ipac.caltech.edu/staff/fmasci/home/astro_refs/HoughTrans_lines_09.pdf
+# -------------------------------------------------------------------
+
+def RANSAC(points, trials):
+    # Your solution must use a RANdom SAmple and Consensus (RANSAC) approach to perform the detection of the 3D plane in front of the vehicle (when and where possible).
+
+    print("Computing RANSAC..")
+    bestPlane = (None, None)
+    bestError = float("inf")
+    
+    for i in range(trials):
+        # select T data points randomly
+        T = random.sample(points, 400)
+        # estimate the plane using this subset of information
+        coefficents, normal, dist = computeGoodPlanarFitting(T, points)
+        error = np.mean(dist)
+        
+        # store the results in our dictionary.
+        if error < bestError:
+            bestPlane = (normal,coefficents)
+            bestError = error
+            print("New Best Error:", error)
+    print("RANSAC computed.")
+    return bestPlane
+
+# -------------------------------------------------------------------
+
 def calculatePointErrors(abc, points):
     the_list = []
     for i in points:
@@ -280,6 +370,7 @@ def calculatePointErrors(abc, points):
     # measure distance of all points from plane given 
     # the plane coefficients calculated
     dist = abs((np.dot(points, abc) - 1)/d)
+
     return dist
 
 def computePlanarThreshold(points,differences,threshold=0.01):
@@ -293,78 +384,6 @@ def computePlanarThreshold(points,differences,threshold=0.01):
             new_points.append(points[i])
     return new_points
 
-def computePlanarFitting(points):
-    # points = np.array(....) ... of 3D points
-
-    # https://math.stackexchange.com/questions/99299/best-fitting-plane-given-a-set-of-points
-    # Calculating the equation of a plane from 3 points in 3D: http://mathworld.wolfram.com/Plane.html
-
-
-    # [Further hint: for this assignment this can be done in full projected floating-point 3D space (X,Y,Z) or in integer image space (x,y,disparity) – see provided hints python file]
-    # ....
-
-    # ---------------------------------------------------------------
-    # how to - select 3 non-colinear points
-    cross_product_check = np.array([0,0,0]);
-
-    # cross product checks
-    cp_check0 = True if cross_product_check[0] == 0 else False
-    cp_check1 = True if cross_product_check[1] == 0 else False
-    cp_check2 = True if cross_product_check[2] == 0 else False
-    
-    while cp_check0 and cp_check1 and cp_check2:
-        [P1,P2,P3] = points[random.sample(xrange(len(points)), 3)]
-        # make sure they are non-collinear
-        cross_product_check = np.cross(P1-P2, P2-P3)
-
-    # ---------------------------------------------------------------
-    # how to - calculate plane coefficients from these points
-
-    # calculate coefficents a,b, and c
-    abc = np.dot(np.linalg.inv(np.array([P1,P2,P3])), np.ones([3,1]))
-
-    # calculate coefficents d
-    d = math.sqrt(abc[0]*abc[0]+abc[1]*abc[1]+abc[2]*abc[2])
-
-    # how to - 
-    # measure distance of all points from plane given 
-    # the plane coefficients calculated
-    dist = abs((np.dot(points, abc) - 1)/d)
-
-    return dist
-
-
-# -------------------------------------------------------------------
-
-# Your solution must use a RANdom SAmple and Consensus (RANSAC) approach to perform the detection of the 3D plane in front of the vehicle (when and where possible).
-
-def RANSAC(points, trials):
-    """
-        In computer vision a standard way is to use RANSAC or MSAC, in your case;
-        Take 3 random points from the population
-        Calculate the plane defined by the 3 points
-        Sum the errors (distance to plane) for all of the points to that plane.
-        Keep the 3 points that show the smallest sum of errors (and fall within a threshold).
-        Repeat N iterations (see RANSAC theory to choose N, may I suggest 50?)
-    """
-
-    planes = {}
-    for i in range(1,trials):
-        # select T data points randomly
-        T = random.sample(points, 8)
-        # print("we have points",T)
-        # estimate feature parameters using this model
-        # (errors, normal, coefficents)
-        error, normal, abc = soupedUpPlaneFitting(T)
-        # errorRate = computePlanarFitting(points)
-        planes[error] = (normal, abc)
-    
-    # get the plane with the smallest errors
-    keylist = sorted(planes)
-    # planes = sorted(planes.iterkeys())
-    the_plane = planes[keylist[0]]
-    # print(the_plane)
-    return the_plane
 
 # -------------------------------------------------------------------
 
@@ -399,3 +418,55 @@ def handleKey(cv2, pause_playback, disparity_scaled, imgL, imgR, crop_disparity)
         pause_playback = not(pause_playback);
     elif (key == ord('x')):       # exit
         raise ValueError("exiting manually")
+
+
+# -------------------------------------------------------------------
+
+# def convertPoints
+
+# -------------------------------------------------------------------
+
+
+def drawConvexHull(pts, base, thickness=1, colour=(0,255,0)):
+    """
+    Draws the convex hull of an image coordinates to a base image.
+    """
+    hull = cv2.convexHull(pts)
+    # draw the convex hull 
+    cv2.drawContours(base,[hull],0,colour,thickness)
+    return base
+
+# -------------------------------------------------------------------
+
+# def batchViewImages(images):
+#     # translated from C code here:
+#     # https://github.com/opencv/opencv/wiki/DisplayManyImages
+#     size = 0
+#     i = 0
+#     x = 0
+#     y = 0
+#     if len(images) == 1:
+#         w = h = 1
+#         size = 300
+#     elif len(images) == 2:
+#         w = 2
+#         h = 1
+#         size = 300
+#     elif len(images) == 3 or len(images) == 4:
+#         w = h = 2
+#         size = 300
+#     elif len(images) == 5 or len(images) == 6:
+#         w = 3
+#         h = 2
+#         size = 200
+#     else:
+#         w = 4
+#         h = 3
+#         size = 150
+    
+#     dimension = (w, h, channels) = ((100 + size * w), (60+size*h), 3)
+#     img = np.zeros(dimension, np.int8)
+
+#     m = 0
+#     n = 0
+#     for i in range(len(images)):

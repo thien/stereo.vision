@@ -88,7 +88,7 @@ try:
         if imageStores != False:
             imgL, imgR = imageStores
 
-            imgL, imgR = f.preProcessImages(imgL,imgR)
+            # imgL, imgR = f.preProcessImages(imgL,imgR)
             grayL, grayR = f.greyscale(imgL,imgR)
 
             skeleton = f.performCanny(imgL)
@@ -96,7 +96,7 @@ try:
 
             # compute disparity image from undistorted and rectified stereo images that we have loaded
             disparity = f.disparity(grayL, grayR, max_disparity, crop_disparity)
-            disparity = f.maskDisparity(disparity)
+            # disparity = f.maskDisparity(disparity)
 
             # load previous disparity to fill in missing content.
             disparity = f.fillDisparity(disparity, previousDisparity)
@@ -106,11 +106,10 @@ try:
             cv2.imshow("disparity", disparity);
 
 
-
             # project to a 3D colour point cloud (with or without colour)
             points = f.projectDisparityTo3d(disparity, max_disparity, imgL);
 
-            trials = 50
+            trials = 400
 
             # then here we compute ransac which will give us the coefficents for our plane.
             bestPlane = f.RANSAC(points, trials)
