@@ -73,25 +73,28 @@ def preProcessImages(imgL,imgR):
     images = [imgL, imgR]
     for i in range(len(images)):
         # https://www.packtpub.com/packtlib/book/Application-Development/9781785283932/2/ch02lvl1sec26/Enhancing%20the%20contrast%20in%20an%20image
-        img_yuv = cv2.cvtColor(images[i], cv2.COLOR_BGR2YUV)
-        # equalize the histogram of the Y channel
-        img_yuv[:,:,0] = cv2.equalizeHist(img_yuv[:,:,0])
-        # convert the YUV image back to RGB format
-        images[i] = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
+        # img_yuv = cv2.cvtColor(images[i], cv2.COLOR_BGR2HSV)
+        # # equalize the histogram of the Y channel
+        # img_yuv[:,:,0] = cv2.equalizeHist(img_yuv[:,:,0])
+        # # convert the YUV image back to RGB format
+        # images[i] = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
         # soup up gamma
 
-        phi = 1
-        theta = 1
-        # Increase intensity such that
-        # dark pixels become much brighter, 
-        # bright pixels become slightly bright
-        maxIntensity = 255.0 
-        k = (maxIntensity/phi)*(imgL/(maxIntensity/theta))**0.5
-        imgL = np.array(k,dtype='uint8')
+        # phi = 1
+        # theta = 1
+        # # Increase intensity such that
+        # # dark pixels become much brighter, 
+        # # bright pixels become slightly bright
+        # maxIntensity = 255.0 
+        # k = (maxIntensity/phi)*(images[i]/(maxIntensity/theta))**0.5
+        # images[i] = np.array(k,dtype='uint8')
 
 
         images[i] = gammaChange(images[i], 1.4)
-        
+        # img_hsl = cv2.cvtColor(images[i], cv2.COLOR_BGR2HLS)
+        hsv = cv2.cvtColor(images[i], cv2.COLOR_BGR2HSV)
+        hsv[:,0,:] = 10
+        images[i] = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
 
 
     imgL, imgR = images[0],images[1]
@@ -105,6 +108,11 @@ def greyscale(imgL,imgR):
     return (imgL, imgR)
 
 # -------------------------------------------------------------------
+
+
+def calculateHistogram(img):
+    hist = cv2.calcHist([img],[0],None,[256],[0,256])
+    return hist
 
 # compute disparity image from undistorted and rectified stereo images that we have loaded
 # (which for reasons best known to the OpenCV developers is returned scaled by 16)
@@ -223,7 +231,7 @@ def projectDisparityTo3d(disparity, max_disparity, rgb=[]):
 def project3DPointsTo2DImagePoints(points):
     points2 = [];
     # calc. Zmax as per above
-    # Zmax = (camera_focal_length_px * stereo_camera_baseline_m) / 2;
+    # Z = (camera_focal_length_px * stereo_camera_baseline_m) / 2;
     for i1 in range(len(points)):
         # reverse earlier projection for X and Y to get x and y again
         Z = points[i1][2]
@@ -382,6 +390,8 @@ def computePlanarThreshold(points,differences,threshold=0.01):
         # we only keep points that are within the threshold.
         if differences[i] < threshold:
             new_points.append(points[i])
+        # else:
+        #     print("Doesn't meet threshold:", differences[i])
     return new_points
 
 
@@ -460,17 +470,75 @@ def getPtsAgain(plane_shape):
     print(pts)
     return pts  
 
-def drawConvexHull(pts, base, thickness=1, colour=(0,255,0)):
+def drawConvexHull(pts, base, thickness=1, colour=(0,0,255)):
     """
     Draws the convex hull of an image coordinates to a base image.
     """
 
+    # https://docs.opencv.org/3.3.1/dd/d49/tutorial_py_contour_features.html
+    # epsilon = 1*cv2.arcLength(pts,True)
+    # approx = cv2.approxPolyDP(pts,epsilon,True)
     hull = cv2.convexHull(pts)
     # draw the convex hull 
     cv2.drawContours(base,[hull],0,colour,thickness)
     return base
 
 # -------------------------------------------------------------------
+
+# plotting of the planar normal direction direction glyph / vector in the image
+def drawNormalGlyph(normal):
+    return False
+
+# automatically adjusting the parameters initial region of interest extraction or image prefiltering based on some form of preliminary analysis image
+def filterRegionByPopularColour(image):
+    return False
+
+# the successful use of any heuristics to speed up processing times or reduce false detections (including at the stage of colour pre-filtering)
+
+# automatically detecting and highlighting obstacles that rise above the road surface plane (vehicles, pedestrians, bollards etc.) as they appear directly in front of the vehicles
+def detectObjects(image):
+    gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+
+    gray = np.float32(gray)
+    dst = cv2.cornerHarris(gray,2,3,0.04)
+
+    #result is dilated for marking the corners, not important
+    dst = cv2.dilate(dst,None)
+
+    # Threshold for an optimal value, it may vary depending on the image.
+    image[dst>0.01*dst.max()]=[255,0,0]
+
+    return image
+
+# -------------------------------------------------------------------
+
+
+
+def batchViewImages(images):
+    counts = len(images)
+    if counts == 1:
+        return images[0]
+    if counts == 2:
+        stack = np.hstack((images[0], images[1]))
+        return cv2.resize(stack, (0,0), fx=0.5, fy=0.5) 
+    if counts == 3:
+        p1 = np.hstack((images[0], images[1]))
+        p2 = np.hstack((images[2], images[2]))
+        stack = np.vstack((p1, p2))
+        return cv2.resize(stack, (0,0), fx=0.5, fy=0.5) 
+    if counts == 4:
+        p1 = np.hstack((images[0], images[1]))
+        p2 = np.hstack((images[2], images[3]))
+        stack = np.vstack((p1, p2))
+        return cv2.resize(stack, (0,0), fx=0.5, fy=0.5)
+    else:
+        pass
+    # numpy_vertical = np.vstack((image, grey_3_channel))
+    # numpy_horizontal = np.hstack((image, grey_3_channel))
+
+    # numpy_vertical_concat = np.concatenate((image, grey_3_channel), axis=0)
+    # numpy_horizontal_concat = np.concatenate((image, grey_3_channel), axis=1)
+    return False
 
 # def batchViewImages(images):
 #     # translated from C code here:

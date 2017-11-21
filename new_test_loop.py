@@ -67,10 +67,10 @@ filelist_l = sorted(os.listdir(path_dir_l));
 options = {
     'crop_disparity' : False, # display full or cropped disparity image
     'pause_playback' : False, # pause until key press after each image
-    'max_disparity' : 256,
-    'ransac_trials' : 500,
+    'max_disparity' : 64,
+    'ransac_trials' : 600,
     'loop': True,
-    'point_threshold' : 0.04
+    'point_threshold' : 0.02
 }
 # Start the loop
 try:
@@ -93,7 +93,7 @@ try:
         if imageStores != False:
             imgL, imgR = imageStores
 
-            imgL = sv.performStereoVision(imgL, imgR, options)
+            imgL, previousDisparity = sv.performStereoVision(imgL, imgR, previousDisparity, options)
 
             # ● Your program must compile and work with OpenCV 3.3 on the lab PCs.
     

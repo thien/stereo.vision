@@ -35,10 +35,10 @@ filename_l = "1506942475.481834_L.png"
 options = {
     'crop_disparity' : False, # display full or cropped disparity image
     'pause_playback' : False, # pause until key press after each image
-    'max_disparity' : 256,
+    'max_disparity' : 128,
     'ransac_trials' : 500,
     'loop' : False,
-    'point_threshold' : 0.04
+    'point_threshold' : 0.1
 }
 # setup the disparity stereo processor to find a maximum of 128 disparity values
 # (adjust parameters if needed - this will effect speed to processing)

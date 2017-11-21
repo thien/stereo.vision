@@ -7,13 +7,13 @@ import functions as f
 default_options = {
     'crop_disparity' : False,
     'pause_playback' : False,
-    'max_disparity' : 64,
+    'max_disparity' : 1024,
     'ransac_trials' : 600,
     'loop' : False,
-    'point_threshold' : 0.01
+    'point_threshold' : 0.02
 }
 
-def performStereoVision(imgL,imgR, opt=default_options):
+def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     
     # perform preprocessing.
     imgL, imgR = f.preProcessImages(imgL,imgR)
@@ -23,6 +23,14 @@ def performStereoVision(imgL,imgR, opt=default_options):
     # compute disparity image
     disparity = f.disparity(grayL,grayR, opt['max_disparity'], opt['crop_disparity'])
 
+    
+    # load previous disparity to fill in missing content.
+    if previousDisparity is not None:
+        disparity = f.fillDisparity(disparity, previousDisparity)
+    # save the disparity and return that for the next iteration in the loop.
+    previousDisparity = disparity
+
+    # mask the disparity s.t we have a reccomended filter range.
     maskedDisparity = f.maskDisparity(disparity)
 
     # show disparity
@@ -34,6 +42,12 @@ def performStereoVision(imgL,imgR, opt=default_options):
 
     maskpoints = f.projectDisparityTo3d(maskedDisparity, opt['max_disparity'])
 
+    # assign reference image
+    referenceImage = imgL
+
+    canny = f.performCanny(grayL)
+    cv2.imshow("canny", canny)
+
     # write to file in an X simple ASCII X Y Z format that can be viewed in 3D
     # f.saveCoords(points, '3d_points.txt')
 
@@ -44,12 +58,10 @@ def performStereoVision(imgL,imgR, opt=default_options):
     normal, abc = f.RANSAC(maskpoints, opt['ransac_trials'])
 
     # we calculate the error distances between the points on the disparity and the plane.
-    print("The Normal:", normal)
-    print("The Plane:", abc)
+    # print("The Normal:", normal)
+    # print("The Plane:", abc)
 
-    # f.printVectorPlane()
     pointDifferences = f.calculatePointErrors(abc, points)
-    print("Point Differences:",pointDifferences)
 
     # here we allocate a threshold s.t if it is beyond this level, we discard the point.
     print("Point Threshold:", opt['point_threshold'])
@@ -74,13 +86,13 @@ def performStereoVision(imgL,imgR, opt=default_options):
     # # convert back to points.
 
     # pts = f.getPtsAgain(plane_shape)
-
+    imgL = f.detectObjects(imgL)
     # When the road surface plane are detected within a stereo image it must display a red polygon on the left (colour) image highlighting where the road plane has been detected as shown in Figure 1.
     imgL = f.drawConvexHull(pts, imgL)
     # cv2.polylines(imgL,[pts],True,(0,255,255), 3)
     # print(pts)
     for i in pts:
-        imgL[i[0][1]][i[0][0]] = [0,0,255]
+        imgL[i[0][1]][i[0][0]] = [0,255,0]
 
 
     # imgL[2] = cv2.bitwise_or(plane_shape, imgL[2])
@@ -88,6 +100,6 @@ def performStereoVision(imgL,imgR, opt=default_options):
         # print(i)
         # imgL[i] = [0,0,255]
     if opt['loop'] == True:
-        cv2.imshow('left image',imgL)
+        cv2.imshow('Result',imgL)
         f.handleKey(cv2, opt['pause_playback'], disparity, imgL, imgR, opt['crop_disparity'])
-    return imgL
+    return imgL, previousDisparity
