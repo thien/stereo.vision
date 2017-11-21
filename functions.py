@@ -149,7 +149,7 @@ def maskDisparity(disparity):
     #     # Take only region
     #     filling = cv2.bitwise_and(previousDisparity,previousDisparity,mask = carmask)
     #     disparity = cv2.add(disparity,filling)
-    disparity = cv2.bitwise_and(disparity,disparity,mask = carmask)
+    disparity = cv2.bitwise_and(disparity,disparity,mask = view_range)
     return disparity
 
 def fillDisparity(disparity, previousDisparity):
@@ -350,7 +350,7 @@ def RANSAC(points, trials):
         if error < bestError:
             bestPlane = (normal,coefficents)
             bestError = error
-            print("New Best Error:", error)
+            # print("New Best Error:", error)
     print("RANSAC computed.")
     return bestPlane
 
@@ -422,15 +422,49 @@ def handleKey(cv2, pause_playback, disparity_scaled, imgL, imgR, crop_disparity)
 
 # -------------------------------------------------------------------
 
-# def convertPoints
+def generatePlaneShape(points, copy):
+    img = cv2.cvtColor(copy,cv2.COLOR_BGR2GRAY)
+    img[:] = 0
+    for i in points:
+        # print(i)
+        img[i[0][1]][i[0][0]] = 255
+    kernel = np.ones((3,3),np.uint8)
+    img = cv2.erode(img,kernel,iterations = 1)
+    img = ParticleCleansing(img)
+    return img
+
+def ParticleCleansing(image):
+	"""
+	ParticleCleansing
+	Searches for particles in an images and removes it using contours.
+	@param image: thresholded image
+	@param image: sanitised image
+	"""
+	_, contours, _= cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+	for spot in contours:
+		area = cv2.contourArea(spot)
+		if area < 20:
+			cv2.drawContours(image,[spot],0,0,-1)
+	return image
 
 # -------------------------------------------------------------------
 
+def getPtsAgain(plane_shape):
+    pts = []
+    for i in range(len(plane_shape)):
+        for j in range(len(plane_shape[i])):
+            if plane_shape[i][j] != 0:
+                pts.append([[i,j]])
+    pts = np.array(pts).astype("uint8")
+    print("--")
+    print(pts)
+    return pts  
 
 def drawConvexHull(pts, base, thickness=1, colour=(0,255,0)):
     """
     Draws the convex hull of an image coordinates to a base image.
     """
+
     hull = cv2.convexHull(pts)
     # draw the convex hull 
     cv2.drawContours(base,[hull],0,colour,thickness)
