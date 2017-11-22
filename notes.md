@@ -1,0 +1,4 @@
+- Will need to perform ransac against the disparity instead of the coordinates.
+- will need to display multiple images in a set.
+- will need to detect objects that obstruct the plane.
+- will need to draw the normal direction.
