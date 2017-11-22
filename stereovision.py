@@ -35,12 +35,15 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     maskedDisparity = f.maskDisparity(disparity)
 
     # project to a 3D colour point cloud (with or without colour)
-    points = f.projectDisparityTo3d(disparity, opt['max_disparity'],imgL)
+    # points = f.projectDisparityTo3d(disparity, opt['max_disparity'],imgL)
 
-    maskpoints = f.projectDisparityTo3d(maskedDisparity, opt['max_disparity'])
+    # maskpoints = f.projectDisparityTo3d(maskedDisparity, opt['max_disparity'])
 
     # assign reference image
     referenceImage = imgL
+
+    # for i in maskpoints:
+    #     print(i)
 
     # canny = f.performCanny(grayL)
 
@@ -50,33 +53,45 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # filter the points by height
     # function() that filters points
 
+    # print("starting tings")
+    # entries = []
+    # for i in range(len(maskedDisparity)):
+    #     for j in range(len(maskedDisparity[i])):
+    #         if maskedDisparity[i][j] != 0:
+    #             entries.append([j,i,maskedDisparity[i][j]])
+    # # for i in entries:
+    # #     print(i)
+    
+    # print("done tings")
+
+
     # then here we compute ransac which will give us the coefficents for our plane.
-    normal, abc = f.RANSAC(maskpoints, opt['ransac_trials'])
+    normal, abc = f.RANSAC(maskedDisparity, opt['ransac_trials'])
 
+    print("Calculating Point Errors")
     # we calculate the error distances between the points on the disparity and the plane.
-
-    pointDifferences = f.calculatePointErrors(abc, points)
+    errorImg = f.calculatePointErrors(abc, disparity)
 
     # here we allocate a threshold s.t if it is beyond this level, we discard the point.
     print("Point Threshold:", opt['point_threshold'])
 
     # compute good points.
     print("Thresholding the points..")
-    points = f.computePlanarThreshold(points,pointDifferences,opt['point_threshold'])
+    entries = f.computePlanarThreshold(disparity,errorImg,opt['point_threshold'])
 
-    # now we sanitise the points.
-    print("Calculating Histogram of Points..")
-    histogram = f.calculateColourHistogram(points)
+    # # now we sanitise the points.
+    # print("Calculating Histogram of Points..")
+    # histogram = f.calculateColourHistogram(entries)
 
-    pointColourThreshold = 20
-    points = f.filterPointsByHistogram(points, histogram, pointColourThreshold)
+    # pointColourThreshold = 20
+    # points = f.filterPointsByHistogram(entries, histogram, pointColourThreshold)
     # ----------------------------------------
 
     # ● For the purposes of this assignment when a road has either curved road edges or other complexities due to the road configuration (e.g. junctions, roundabouts, road type, occlusions) report and display the road boundaries as far as possible using a polygon or an alternative pixel-wise boundary.
     print("Projecting 3D Points to 2D Image points..")
 
     # convert 3D points back into 2d.
-    pts = f.project3DPointsTo2DImagePoints(points)
+    # pts = f.project3DPointsTo2DImagePoints(entries)
     pts = np.array(pts, np.int32)
     pts = pts.reshape((-1,1,2))
     # print(pts)
@@ -94,12 +109,13 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # cv2.polylines(imgL,[pts],True,(0,255,255), 3)
     # print(pts)
 
+    # draw original points on image map.
     print("Drawing original points on image map..")
     for i in pts:
         # print(i)
-
         imgL[i[0][1]][i[0][0]] = [0,255,0]
 
+    # sanitise road points.
     print("Sanitizing Road Points..")
     roadImage, ptz = f.generatePointsAsImage(pts, np.size(imgL, 0), np.size(imgL, 1))
     # _,contours,_ = cv2.findContours(roadImage,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)

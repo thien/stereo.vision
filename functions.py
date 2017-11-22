@@ -8,6 +8,17 @@ from multiprocessing import Pool
 
 pool = Pool(os.cpu_count()-1) 
 
+
+# ● For the purposes of this assignment when a road has either curved road edges or other complexities due to the road configuration (e.g. junctions, roundabouts, road type, occlusions) report and display the road boundaries as far as possible using a polygon or an alternative pixel-wise boundary.
+
+# You may use any heuristics you wish to aid/filter/adjust your approach but RANSAC must be central to the detection you perform.
+
+# http://pathfinder.engin.umich.edu/documents/Feng&Taguchi&Kamat.ICRA.2014.pdf
+# http://web.ipac.caltech.edu/staff/fmasci/home/astro_refs/HoughTrans_lines_09.pdf
+# https://stackoverflow.com/questions/18255958/harris-corner-detection-and-localization-in-opencv-with-python
+# https://stackoverflow.com/questions/32609098/how-to-fast-change-image-brightness-with-python-opencv
+
+
 # focal length in pixels
 camera_focal_length_px = 399.9745178222656
 # focal length in metres (4.8 mm) 
@@ -113,11 +124,6 @@ def greyscale(imgL,imgR):
     return (imgL, imgR)
 
 # -------------------------------------------------------------------
-
-
-def calculateHistogram(img):
-    hist = cv2.calcHist([img],[0],None,[256],[0,256])
-    return hist
 
 # compute disparity image from undistorted and rectified stereo images that we have loaded
 # (which for reasons best known to the OpenCV developers is returned scaled by 16)
@@ -296,15 +302,7 @@ def printVectorPlane(plane=[]):
     plt.show()
 
 
-# ● For the purposes of this assignment when a road has either curved road edges or other complexities due to the road configuration (e.g. junctions, roundabouts, road type, occlusions) report and display the road boundaries as far as possible using a polygon or an alternative pixel-wise boundary.
-
-# You may use any heuristics you wish to aid/filter/adjust your approach but RANSAC must be central to the detection you perform.
-
-# http://pathfinder.engin.umich.edu/documents/Feng&Taguchi&Kamat.ICRA.2014.pdf
-# http://web.ipac.caltech.edu/staff/fmasci/home/astro_refs/HoughTrans_lines_09.pdf
-# https://stackoverflow.com/questions/18255958/harris-corner-detection-and-localization-in-opencv-with-python
-# https://stackoverflow.com/questions/32609098/how-to-fast-change-image-brightness-with-python-opencv
-
+# -------------------------------------------------------------------
 
 def randomNonCollinearPoints(points):
     # print("Calculating Non CollinearPoints")
@@ -322,9 +320,14 @@ def randomNonCollinearPoints(points):
     P3 = None
 
     while cp_check0 and cp_check1 and cp_check2:
-        P1 = np.array([x[:3] for x in random.sample(points, 1)])[0]
-        P2 = np.array([x[:3] for x in random.sample(points, 1)])[0]
-        P3 = np.array([x[:3] for x in random.sample(points, 1)])[0]
+
+        P1 = np.array([x[:3] for x in random.sample(list(points), 1)])[0]
+        P2 = np.array([x[:3] for x in random.sample(list(points), 1)])[0]
+        P3 = np.array([x[:3] for x in random.sample(list(points), 1)])[0]
+
+        # P1 = np.array([x[:3] for x in random.sample(list(points), 1)])[0]
+        # P2 = np.array([x[:3] for x in random.sample(points, 1)])[0]
+        # P3 = np.array([x[:3] for x in random.sample(points, 1)])[0]
         # make sure they are non-collinear
         # print("Checking for colineararity..")
         cross_product_check = np.cross(P1-P2, P2-P3)
@@ -335,12 +338,12 @@ def randomNonCollinearPoints(points):
     # print("Calculated Non-Colinear Points.")
     return (P1, P2, P3)
 
-def planarFitting(randomPoints, points):
+def planarFitting(randomPoints):
     # [Further hint: for this assignment this can be done in full projected floating-point 3D space (X,Y,Z) or in integer image space (x,y,disparity) – see provided hints python file]
     
     # generate random colinear points.
     # Here we choose from the whole point range
-    P1, P2, P3 = randomNonCollinearPoints(points)
+    P1, P2, P3 = randomNonCollinearPoints(randomPoints)
 
     # calculate coefficents a,b, and c
     abc = np.dot(np.linalg.inv(np.array([P1,P2,P3])), np.ones([3,1]))
@@ -364,109 +367,79 @@ def planarFitting(randomPoints, points):
 
     return abc, normal, dist
 
+# ----------
 
+def getRandomSample(image, sampleSize):
+    results = []
+    while len(results) < sampleSize:
+        x = random.randint(0, np.size(image, 0)-1)
+        y = random.randint(0, np.size(image, 1)-1)
+        z = image[x][y]
+        point = [x,y,z]
+        if z != 0:
+            if point not in results:
+                results.append(point) 
+    return results
 
-# removes artifacts.
-def removeSmallParticles(image, threshold=20):
-    _, contours, _= cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    for spectacle in contours:
-        area = cv2.contourArea(spectacle)
-        if area < threshold:
-            # its most likely a particle, colour it black.
-            cv2.drawContours(image,[spectacle],0,0,-1)
-    return image
-
-def generatePointsAsImage(points, height, width):
-    # https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html
-    img = blackImg.copy()
-    # draw points on image.
-    for i in points:
-        img[i[0][1]][i[0][0]] = 255
-
-    referenceImg = img.copy()
-    # perform closing on the image to fill holes
-    kernel = np.ones((9,9),np.uint8)
-    img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
-    # erode a little bit.
-    img = cv2.erode(img,kernel,iterations = 2)
-
-    # put a threshold for the road points (used for convex hull purposes)
-    img = cv2.bitwise_and(img,img,mask = road_threshold_mask)
-    # # Generate est. Border.
-    # bigKernel = np.ones((15,15),np.uint8)
-    # Borders = cv2.dilate(img,bigKernel,iterations = 1)
-    # Borders = cv2.erode(Borders,bigKernel,iterations = 1)
-
-    # Borders = removeSmallParticles(Borders, 200)
-
-    # blurredImg = cv2.GaussianBlur(img,(15,15),0)
-    # img = cv2.bitwise_and(img, img, mask=referenceImg)
-    pts = []
-    for i in range(height):
-        for j in range(width):
-            if img[i][j] != 0:
-
-                k = [j,i]
-                # print(k)
-                pts.append(k)
-    pts = np.matrix(pts)
-    return img, pts
-
-# -------------------------------------------------------------------
-
-def RANSAC(points, trials):
+def RANSAC(disparity, trials):
     # Your solution must use a RANdom SAmple and Consensus (RANSAC) approach to perform the detection of the 3D plane in front of the vehicle (when and where possible).
 
     print("Computing RANSAC..")
     bestPlane = (None, None)
     bestError = float("inf")
+
     
     for i in range(trials):
+        RandomPoints = getRandomSample(disparity, 100)
         # select T data points randomly
-        T = random.sample(points, 400)
         # estimate the plane using this subset of information
-        coefficents, normal, dist = planarFitting(T, points)
+        coefficents, normal, dist = planarFitting(RandomPoints)
         error = np.mean(dist)
         
         # store the results in our dictionary.
         if error < bestError:
             bestPlane = (normal,coefficents)
             bestError = error
-            # print("New Best Error:", error)
+            print(i, "New Best Error:", error)
     print("RANSAC computed.")
     return bestPlane
 
 # -------------------------------------------------------------------
 
-def calculatePointErrors(abc, points):
-    the_list = []
-    for i in points:
-        p = [i[0],i[1],i[2]]
-        # print(p)
-        the_list.append(p)
-    points = np.array(the_list)
-
+def calculatePointErrors(abc, img):
+    newImg = img.copy()
+    entries = []
     # calculate coefficents d
     d = math.sqrt(abc[0]*abc[0]+abc[1]*abc[1]+abc[2]*abc[2])
 
-    # measure distance of all points from plane given 
-    # the plane coefficients calculated
-    dist = abs((np.dot(points, abc) - 1)/d)
+    for i in range(len(img)):
+        for j in range(len(img[i])):
+            if img[i][j] != 0:
+                ent = [i,j,newImg[i][j]]
+                newImg[i][j] = abs((np.dot(ent, abc) - 1)/d)
+                # print(newImg[i][j])
+    # # calculate coefficents d
+    # d = math.sqrt(abc[0]*abc[0]+abc[1]*abc[1]+abc[2]*abc[2])
 
-    return dist
+    # # measure distance of all points from plane given 
+    # # the plane coefficients calculated
+    # dist = abs((np.dot(entries, abc) - 1)/d)
+    return newImg
 
-def computePlanarThreshold(points,differences,threshold=0.01):
+def computePlanarThreshold(points,differences,threshold=10):
     """
         Discards points on the disparity where it is not within the plane.
     """
-    new_points = []
-    for i in range(len(points)):
-        # we only keep points that are within the threshold.
-        if differences[i] < threshold:
-            new_points.append(points[i])
-        # else:
-        #     print("Doesn't meet threshold:", differences[i])
-    return new_points
+
+    ret,thresh1 = cv2.threshold(differences,0,255,cv2.THRESH_BINARY_INV)
+    img = cv2.bitwise_and(thresh1,thresh1,mask = car_front_mask)
+    cv2.imshow('Result',img)
+    cv2.waitKey(0);
+    # threshold the differences
+    # use the result as a mask on the image
+    # return the new image
+    
+    return img
 
 # -------------------------------------------------------------------
 
@@ -583,6 +556,56 @@ def detectObjects(image):
 
     return image
 
+
+
+
+# removes artifacts.
+def removeSmallParticles(image, threshold=20):
+    _, contours, _= cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    for spectacle in contours:
+        area = cv2.contourArea(spectacle)
+        if area < threshold:
+            # its most likely a particle, colour it black.
+            cv2.drawContours(image,[spectacle],0,0,-1)
+    return image
+
+def generatePointsAsImage(points, height, width):
+    # https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html
+    img = blackImg.copy()
+    # draw points on image.
+    for i in points:
+        img[i[0][1]][i[0][0]] = 255
+
+    referenceImg = img.copy()
+    # perform closing on the image to fill holes
+    kernel = np.ones((9,9),np.uint8)
+    img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
+    # erode a little bit.
+    img = cv2.erode(img,kernel,iterations = 2)
+
+    # put a threshold for the road points (used for convex hull purposes)
+    img = cv2.bitwise_and(img,img,mask = road_threshold_mask)
+    # # Generate est. Border.
+    # bigKernel = np.ones((15,15),np.uint8)
+    # Borders = cv2.dilate(img,bigKernel,iterations = 1)
+    # Borders = cv2.erode(Borders,bigKernel,iterations = 1)
+
+    # Borders = removeSmallParticles(Borders, 200)
+
+    # blurredImg = cv2.GaussianBlur(img,(15,15),0)
+    # img = cv2.bitwise_and(img, img, mask=referenceImg)
+    pts = []
+    for i in range(height):
+        for j in range(width):
+            if img[i][j] != 0:
+
+                k = [j,i]
+                # print(k)
+                pts.append(k)
+    pts = np.matrix(pts)
+    return img, pts
+
+# 
 # -------------------------------------------------------------------
 
 # def batchViewImages(images):
