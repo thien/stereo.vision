@@ -1,6 +1,7 @@
 # imports, don't touch them lol
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 # import csv
 import functions as f
 
@@ -23,19 +24,15 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # compute disparity image
     disparity = f.disparity(grayL,grayR, opt['max_disparity'], opt['crop_disparity'])
 
-    
     # load previous disparity to fill in missing content.
     if previousDisparity is not None:
         disparity = f.fillDisparity(disparity, previousDisparity)
+
     # save the disparity and return that for the next iteration in the loop.
     previousDisparity = disparity
 
     # mask the disparity s.t we have a reccomended filter range.
     maskedDisparity = f.maskDisparity(disparity)
-
-    # show disparity
-    cv2.imshow("disparity", disparity)
-    cv2.imshow("maskedDisp", maskedDisparity)
 
     # project to a 3D colour point cloud (with or without colour)
     points = f.projectDisparityTo3d(disparity, opt['max_disparity'])
@@ -46,7 +43,6 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     referenceImage = imgL
 
     canny = f.performCanny(grayL)
-    cv2.imshow("canny", canny)
 
     # write to file in an X simple ASCII X Y Z format that can be viewed in 3D
     # f.saveCoords(points, '3d_points.txt')
@@ -86,7 +82,7 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # # convert back to points.
 
     # pts = f.getPtsAgain(plane_shape)
-    imgL = f.detectObjects(imgL)
+    # imgL = f.detectObjects(imgL)
     # When the road surface plane are detected within a stereo image it must display a red polygon on the left (colour) image highlighting where the road plane has been detected as shown in Figure 1.
     imgL = f.drawConvexHull(pts, imgL)
     # cv2.polylines(imgL,[pts],True,(0,255,255), 3)
@@ -100,6 +96,18 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
         # print(i)
         # imgL[i] = [0,0,255]
     if opt['loop'] == True:
+
+        # show disparity
+        cv2.imshow("disparity", disparity)
+        cv2.imshow("maskedDisp", maskedDisparity)
+        cv2.imshow("canny", canny)
         cv2.imshow('Result',imgL)
+        # foo, axarr = plt.subplots(2,2)
+        # axarr[0,1].imshow(disparity)
+        # axarr[0,0].imshow(maskedDisparity)
+        # axarr[1,0].imshow(canny)
+        # axarr[1,1].imshow(imgL)
+
+        # foo.canvas.draw()
         f.handleKey(cv2, opt['pause_playback'], disparity, imgL, imgR, opt['crop_disparity'])
     return imgL, previousDisparity
