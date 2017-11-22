@@ -4,6 +4,9 @@ import numpy as np
 import random
 import os
 import csv
+from multiprocessing import Pool
+
+pool = Pool(os.cpu_count()-1) 
 
 # focal length in pixels
 camera_focal_length_px = 399.9745178222656
@@ -195,8 +198,6 @@ def performCanny(image):
 
 # -------------------------------------------------------------------
 
-# project_disparity_to_3d : project a given disparity image
-# (uncropped, unscaled) to a set of 3D points with optional colour
 def projectDisparityTo3d(disparity, max_disparity, rgb=[]):
     print("projecting disparity to 3D..")
     # list of points
@@ -207,6 +208,7 @@ def projectDisparityTo3d(disparity, max_disparity, rgb=[]):
     # assume a minimal disparity of 2 pixels is possible to get Zmax
     # and then get reasonable scaling in X and Y output
     # Zmax = ((f * B) / 2);
+
     for y in range(height): # 0 - height is the y axis index
         for x in range(width): # 0 - width is the x axis index
             # if we have a valid non-zero disparity
@@ -219,13 +221,27 @@ def projectDisparityTo3d(disparity, max_disparity, rgb=[]):
                 # print(x,y,z)
                 # add to points
 
-                # THIS IS THE RESASON WHY YOU MESSED UP
-                # if Y < 0.1:
                 if(len(rgb) > 0):
                     points.append([X,Y,Z,rgb[y,x,2], rgb[y,x,1],rgb[y,x,0]]);
                 else:
                     points.append([X,Y,Z]);
     return points;
+
+
+def calculateColourHistogram(points):
+    # get colour points for each point in plane.
+    # we use YLinear weights from https://en.wikipedia.org/wiki/Grayscale
+    # 0.06+0.75+0.19
+    colours = [int(0.06*pt[3] + 0.75*pt[4] + 0.19*pt[5]) for pt in points]
+    
+    histogram = {}
+    for i in range(0,256):
+        histogram[i] = 0
+    for i in colours:
+        histogram[i] += 1
+    print(histogram)
+    return histogram
+
 
 # -------------------------------------------------------------------
 
@@ -267,8 +283,7 @@ def printVectorPlane(plane=[]):
     plt3d.plot_surface(xx, yy, z)
     plt.show()
 
-# select a random subset of the 3D points (4 in total)
-# and them project back to the 2D image (as an example)
+
 # ● For the purposes of this assignment when a road has either curved road edges or other complexities due to the road configuration (e.g. junctions, roundabouts, road type, occlusions) report and display the road boundaries as far as possible using a polygon or an alternative pixel-wise boundary.
 
 # You may use any heuristics you wish to aid/filter/adjust your approach but RANSAC must be central to the detection you perform.
@@ -308,19 +323,12 @@ def randomNonCollinearPoints(points):
     # print("Calculated Non-Colinear Points.")
     return (P1, P2, P3)
 
-def computeGoodPlanarFitting(randomPoints, points):
-
-    # https://math.stackexchange.com/questions/99299/best-fitting-plane-given-a-set-of-points
-    # Calculating the equation of a plane from 3 points in 3D: http://mathworld.wolfram.com/Plane.html
-
-
+def planarFitting(randomPoints, points):
     # [Further hint: for this assignment this can be done in full projected floating-point 3D space (X,Y,Z) or in integer image space (x,y,disparity) – see provided hints python file]
     
     # generate random colinear points.
     # Here we choose from the whole point range
     P1, P2, P3 = randomNonCollinearPoints(points)
-
-    # now we can calculate plane coefficients from these points
 
     # calculate coefficents a,b, and c
     abc = np.dot(np.linalg.inv(np.array([P1,P2,P3])), np.ones([3,1]))
@@ -328,8 +336,13 @@ def computeGoodPlanarFitting(randomPoints, points):
     # calculate coefficents d
     d = math.sqrt(abc[0]*abc[0]+abc[1]*abc[1]+abc[2]*abc[2])
 
+
+    if len(randomPoints[0]) > 3:
+        randomPoints = [[item[0], item[1], item[2]] for item in randomPoints]
+
     # measure distance of our random points from plane given 
     # the plane coefficients calculated
+    
     dist = abs((np.dot(randomPoints, abc) - 1)/d)
 
     # calculate the normal
@@ -339,7 +352,6 @@ def computeGoodPlanarFitting(randomPoints, points):
 
     return abc, normal, dist
 
-# http://web.ipac.caltech.edu/staff/fmasci/home/astro_refs/HoughTrans_lines_09.pdf
 # -------------------------------------------------------------------
 
 def RANSAC(points, trials):
@@ -353,7 +365,7 @@ def RANSAC(points, trials):
         # select T data points randomly
         T = random.sample(points, 400)
         # estimate the plane using this subset of information
-        coefficents, normal, dist = computeGoodPlanarFitting(T, points)
+        coefficents, normal, dist = planarFitting(T, points)
         error = np.mean(dist)
         
         # store the results in our dictionary.
@@ -396,7 +408,6 @@ def computePlanarThreshold(points,differences,threshold=0.01):
         #     print("Doesn't meet threshold:", differences[i])
     return new_points
 
-
 # -------------------------------------------------------------------
 
 # write to file in an X simple ASCII X Y Z format that can be viewed in 3D
@@ -430,7 +441,6 @@ def handleKey(cv2, pause_playback, disparity_scaled, imgL, imgR, crop_disparity)
         pause_playback = not(pause_playback);
     elif (key == ord('x')):       # exit
         raise ValueError("exiting manually")
-
 
 # -------------------------------------------------------------------
 
@@ -514,8 +524,6 @@ def detectObjects(image):
     return image
 
 # -------------------------------------------------------------------
-
-
 
 # def batchViewImages(images):
 #     counts = len(images)

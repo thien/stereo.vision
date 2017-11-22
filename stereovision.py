@@ -35,14 +35,14 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     maskedDisparity = f.maskDisparity(disparity)
 
     # project to a 3D colour point cloud (with or without colour)
-    points = f.projectDisparityTo3d(disparity, opt['max_disparity'])
+    points = f.projectDisparityTo3d(disparity, opt['max_disparity'],imgL)
 
     maskpoints = f.projectDisparityTo3d(maskedDisparity, opt['max_disparity'])
 
     # assign reference image
     referenceImage = imgL
 
-    canny = f.performCanny(grayL)
+    # canny = f.performCanny(grayL)
 
     # write to file in an X simple ASCII X Y Z format that can be viewed in 3D
     # f.saveCoords(points, '3d_points.txt')
@@ -66,9 +66,15 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     print("Thresholding the points..")
     points = f.computePlanarThreshold(points,pointDifferences,opt['point_threshold'])
 
+    # now we sanitise the points.
+    print("Calculating Histogram of Points..")
+    points = f.calculateColourHistogram(points)
+
+    # ----------------------------------------
+
     # ● For the purposes of this assignment when a road has either curved road edges or other complexities due to the road configuration (e.g. junctions, roundabouts, road type, occlusions) report and display the road boundaries as far as possible using a polygon or an alternative pixel-wise boundary.
     print("Projecting 3D Points to 2D Image points..")
-    
+
     # convert 3D points back into 2d.
     pts = f.project3DPointsTo2DImagePoints(points)
     pts = np.array(pts, np.int32)
@@ -100,7 +106,7 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
         # show disparity
         cv2.imshow("disparity", disparity)
         cv2.imshow("maskedDisp", maskedDisparity)
-        cv2.imshow("canny", canny)
+        # cv2.imshow("canny", canny)
         cv2.imshow('Result',imgL)
         # foo, axarr = plt.subplots(2,2)
         # axarr[0,1].imshow(disparity)

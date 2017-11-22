@@ -49,7 +49,7 @@ options = {
 imageStores = f.loadImages(filename_l, path_dir_l, path_dir_r)
 if imageStores != False:
     imgL, imgR = imageStores
-    imgL = sv.performStereoVision(imgL, imgR, options)
+    imgL, _ = sv.performStereoVision(imgL, imgR, None, options)
     
     cv2.imshow('left image',imgL)
 
