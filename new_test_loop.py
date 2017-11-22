@@ -37,6 +37,7 @@ import random
 import numpy as np
 import csv
 import functions as f
+import stereovision as sv
 
 # ---------------------------------------------------------------------------
 
@@ -51,8 +52,6 @@ directory_to_cycle_right = "right-images";
 # e.g. set to 1506943191.487683 for the end of the Bailey, just as the vehicle turns
 skip_forward_file_pattern = "";
 
-crop_disparity = False;     # display full or cropped disparity image
-pause_playback = False;     # pause until key press after each image
 
 # ---------------------------------------------------------------------------
 
@@ -69,7 +68,9 @@ options = {
     'crop_disparity' : False, # display full or cropped disparity image
     'pause_playback' : False, # pause until key press after each image
     'max_disparity' : 64,
-    'ransac_trials' : 50
+    'ransac_trials' : 600,
+    'loop': True,
+    'point_threshold' : 0.02
 }
 # Start the loop
 try:
@@ -92,73 +93,10 @@ try:
         if imageStores != False:
             imgL, imgR = imageStores
 
-            # imgL, imgR = f.preProcessImages(imgL,imgR)
-            grayL, grayR = f.greyscale(imgL,imgR)
-
-            skeleton = f.performCanny(imgL)
-            cv2.imshow('canny', skeleton)
-
-            # compute disparity image from undistorted and rectified stereo images that we have loaded
-            disparity = f.disparity(grayL, grayR, max_disparity, crop_disparity)
-            # disparity = f.maskDisparity(disparity)
-
-            # load previous disparity to fill in missing content.
-            disparity = f.fillDisparity(disparity, previousDisparity)
-            previousDisparity = disparity
-
-            # show disparity
-            cv2.imshow("disparity", disparity);
-
-
-            # project to a 3D colour point cloud (with or without colour)
-            points = f.projectDisparityTo3d(disparity, max_disparity, imgL);
-
-            trials = 400
-
-            # then here we compute ransac which will give us the coefficents for our plane.
-            bestPlane = f.RANSAC(points, trials)
-            # we calculate the error distances between the points on the disparity and the plane.
-
-            pointDifferences = f.calculatePointErrors(bestPlane[1], points)
-
-            # print(pointDifferences)
-
-            pointThreshold = np.average(pointDifferences)
-            # compute good points.
-            points = f.computePlanarThreshold(points,pointDifferences,pointThreshold)
-            # print(points)
-            # ● For the purposes of this assignment when a road has either curved road edges or other complexities due to the road configuration (e.g. junctions, roundabouts, road type, occlusions) report and display the road boundaries as far as possible using a polygon or an alternative pixel-wise boundary.
-
-            # You may use any heuristics you wish to aid/filter/adjust your approach but RANSAC must be central to the detection you perform.
-
-            # get the points here.
-            pts = f.project3DPointsTo2DImagePoints(points);
-            pts = np.array(pts, np.int32);
-            pts = pts.reshape((-1,1,2));
-            # pts = f.project3DPointsTo2DImagePoints(random.sample(points, 4));
-            # pts = np.array(pts, np.int32);
-            # pts = pts.reshape((-1,1,2));
-
-
-
-
-
-
-
-            cv2.polylines(imgL,[pts],True,(0,0,255), 3);
-
-
-            # convert disparity to rgb so we can map it with the image.
-            # backtorgb = cv2.cvtColor(disparity,cv2.COLOR_GRAY2RGB)
-
-            # imgL = cv2.bitwise_xor(imgL, backtorgb)
-            
-            cv2.imshow('left image',imgL)
-
-
+            imgL, previousDisparity = sv.performStereoVision(imgL, imgR, previousDisparity, options)
 
             # ● Your program must compile and work with OpenCV 3.3 on the lab PCs.
-            f.handleKey(cv2, pause_playback, disparity, imgL, imgR, crop_disparity)
+    
         else:
             print("-- files skipped (perhaps one is missing or not PNG)");
 
