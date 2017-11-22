@@ -23,7 +23,9 @@ stereoProcessor = cv2.StereoSGBM_create(0, max_disparity, 21);
     
 # Here we load pre-requisite masks. This way, they're preloaded
 # and ready for when they are needed on an image.
+road_threshold_mask = cv2.imread("masks/road_threshold_mask.png", cv2.IMREAD_GRAYSCALE)
 car_front_mask = cv2.imread("masks/car_front_mask.png", cv2.IMREAD_GRAYSCALE);
+blackImg = cv2.imread("black.png", cv2.IMREAD_GRAYSCALE);
 view_range = cv2.imread("masks/view_range.png", cv2.IMREAD_GRAYSCALE);
 plane_sample = cv2.imread("masks/plane_sample.png", cv2.IMREAD_GRAYSCALE);
 carmask = cv2.bitwise_and(car_front_mask,car_front_mask,mask = view_range)
@@ -178,15 +180,6 @@ def baseMaskDisp(disparity):
     return disparity
 # -------------------------------------------------------------------
 
-# removes artifacts.
-def removeSmallParticles(image):
-    _, contours, _= cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    for spectacle in contours:
-        area = cv2.contourArea(spectacle)
-        if area < 20:
-            # its most likely a particle, colour it black.
-            cv2.drawContours(image,[spectacle],0,0,-1)
-    return image
 
 def performCanny(image):
     # image = cv2.GaussianBlur(image,(5,5),0)
@@ -228,19 +221,38 @@ def projectDisparityTo3d(disparity, max_disparity, rgb=[]):
     return points;
 
 
+def RGBToGreyscale(r,g,b):
+    # we use some modified YLinear weights sourced from (https://en.wikipedia.org/wiki/Grayscale)
+    return int(0.06*r + 0.75*g + 0.19*b)
+
+
+def getPointColour(point):
+    return (point[3], point[4], point[5])
+
 def calculateColourHistogram(points):
     # get colour points for each point in plane.
-    # we use YLinear weights from https://en.wikipedia.org/wiki/Grayscale
-    # 0.06+0.75+0.19
-    colours = [int(0.06*pt[3] + 0.75*pt[4] + 0.19*pt[5]) for pt in points]
-    
+    # convert it to greyscale
+    # colours = [RGBToGreyscale(pt[3],pt[4],pt[5]) for pt in points]
+    colours = [tuple([pt[3],pt[4],pt[5]]) for pt in points]
+
     histogram = {}
-    for i in range(0,256):
-        histogram[i] = 0
     for i in colours:
-        histogram[i] += 1
-    print(histogram)
+        if i not in histogram:
+            histogram[i] = 1
+        else:
+            histogram[i] += 1
     return histogram
+
+def filterPointsByHistogram(points, histogram, threshold=100):
+    # sort keys by histogram rank
+    # sortedColours = sorted(histogram, key=histogram.__getitem__)
+    # for colour in sortedColours:
+    #     print( colour, 'corresponds to', histogram[colour])
+
+    # pythonic expression for filtering 
+    points = [x for x in points if histogram[getPointColour(x)] > threshold]
+
+    return points
 
 
 # -------------------------------------------------------------------
@@ -351,6 +363,54 @@ def planarFitting(randomPoints, points):
     normal = normal / nn
 
     return abc, normal, dist
+
+
+
+# removes artifacts.
+def removeSmallParticles(image, threshold=20):
+    _, contours, _= cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    for spectacle in contours:
+        area = cv2.contourArea(spectacle)
+        if area < threshold:
+            # its most likely a particle, colour it black.
+            cv2.drawContours(image,[spectacle],0,0,-1)
+    return image
+
+def generatePointsAsImage(points, height, width):
+    # https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html
+    img = blackImg.copy()
+    # draw points on image.
+    for i in points:
+        img[i[0][1]][i[0][0]] = 255
+
+    referenceImg = img.copy()
+    # perform closing on the image to fill holes
+    kernel = np.ones((9,9),np.uint8)
+    img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
+    # erode a little bit.
+    img = cv2.erode(img,kernel,iterations = 2)
+
+    # put a threshold for the road points (used for convex hull purposes)
+    img = cv2.bitwise_and(img,img,mask = road_threshold_mask)
+    # # Generate est. Border.
+    # bigKernel = np.ones((15,15),np.uint8)
+    # Borders = cv2.dilate(img,bigKernel,iterations = 1)
+    # Borders = cv2.erode(Borders,bigKernel,iterations = 1)
+
+    # Borders = removeSmallParticles(Borders, 200)
+
+    # blurredImg = cv2.GaussianBlur(img,(15,15),0)
+    # img = cv2.bitwise_and(img, img, mask=referenceImg)
+    pts = []
+    for i in range(height):
+        for j in range(width):
+            if img[i][j] != 0:
+
+                k = [j,i]
+                # print(k)
+                pts.append(k)
+    pts = np.matrix(pts)
+    return img, pts
 
 # -------------------------------------------------------------------
 

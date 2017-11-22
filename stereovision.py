@@ -54,8 +54,6 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     normal, abc = f.RANSAC(maskpoints, opt['ransac_trials'])
 
     # we calculate the error distances between the points on the disparity and the plane.
-    # print("The Normal:", normal)
-    # print("The Plane:", abc)
 
     pointDifferences = f.calculatePointErrors(abc, points)
 
@@ -68,8 +66,10 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
 
     # now we sanitise the points.
     print("Calculating Histogram of Points..")
-    points = f.calculateColourHistogram(points)
+    histogram = f.calculateColourHistogram(points)
 
+    pointColourThreshold = 20
+    points = f.filterPointsByHistogram(points, histogram, pointColourThreshold)
     # ----------------------------------------
 
     # ● For the purposes of this assignment when a road has either curved road edges or other complexities due to the road configuration (e.g. junctions, roundabouts, road type, occlusions) report and display the road boundaries as far as possible using a polygon or an alternative pixel-wise boundary.
@@ -90,24 +90,40 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # pts = f.getPtsAgain(plane_shape)
     # imgL = f.detectObjects(imgL)
     # When the road surface plane are detected within a stereo image it must display a red polygon on the left (colour) image highlighting where the road plane has been detected as shown in Figure 1.
-    imgL = f.drawConvexHull(pts, imgL)
+    # imgL = f.drawConvexHull(pts, imgL)
     # cv2.polylines(imgL,[pts],True,(0,255,255), 3)
     # print(pts)
+
+    print("Drawing original points on image map..")
     for i in pts:
+        # print(i)
+
         imgL[i[0][1]][i[0][0]] = [0,255,0]
 
+    print("Sanitizing Road Points..")
+    roadImage, ptz = f.generatePointsAsImage(pts, np.size(imgL, 0), np.size(imgL, 1))
+    # _,contours,_ = cv2.findContours(roadImage,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
 
-    # imgL[2] = cv2.bitwise_or(plane_shape, imgL[2])
-    # for i in imgL:
-        # print(i)
-        # imgL[i] = [0,0,255]
+    try:
+        # generate convex hull 
+        hull = cv2.convexHull(ptz)
+        # draw hull on image L.
+        cv2.drawContours(imgL,[hull],0,(0,0,255),5)
+    except Exception as e:
+        print("There was an error with generating a hull:", e)
+
+    print("Loading Image..")
+    cv2.imshow('Result',roadImage)
+
+
     if opt['loop'] == True:
 
         # show disparity
         cv2.imshow("disparity", disparity)
-        cv2.imshow("maskedDisp", maskedDisparity)
+        # cv2.imshow("maskedDisp", maskedDisparity)
         # cv2.imshow("canny", canny)
         cv2.imshow('Result',imgL)
+        cv2.imshow('road',roadImage)
         # foo, axarr = plt.subplots(2,2)
         # axarr[0,1].imshow(disparity)
         # axarr[0,0].imshow(maskedDisparity)
