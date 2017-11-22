@@ -157,7 +157,7 @@ def maskDisparity(disparity):
     #     # Take only region
     #     filling = cv2.bitwise_and(previousDisparity,previousDisparity,mask = carmask)
     #     disparity = cv2.add(disparity,filling)
-    disparity = cv2.bitwise_and(disparity,disparity,mask = view_range)
+    disparity = cv2.bitwise_and(disparity,disparity,mask = carmask)
     return disparity
 
 def fillDisparity(disparity, previousDisparity):
@@ -198,7 +198,7 @@ def performCanny(image):
 # project_disparity_to_3d : project a given disparity image
 # (uncropped, unscaled) to a set of 3D points with optional colour
 def projectDisparityTo3d(disparity, max_disparity, rgb=[]):
-    print("projecting disparity")
+    print("projecting disparity to 3D..")
     # list of points
     points = [];
     f = camera_focal_length_px;
@@ -218,11 +218,13 @@ def projectDisparityTo3d(disparity, max_disparity, rgb=[]):
                 Y = ((y - image_centre_h) * Z) / f;
                 # print(x,y,z)
                 # add to points
-                if Y < 0.1:
-                    if(len(rgb) > 0):
-                        points.append([X,Y,Z,rgb[y,x,2], rgb[y,x,1],rgb[y,x,0]]);
-                    else:
-                        points.append([X,Y,Z]);
+
+                # THIS IS THE RESASON WHY YOU MESSED UP
+                # if Y < 0.1:
+                if(len(rgb) > 0):
+                    points.append([X,Y,Z,rgb[y,x,2], rgb[y,x,1],rgb[y,x,0]]);
+                else:
+                    points.append([X,Y,Z]);
     return points;
 
 # -------------------------------------------------------------------
@@ -497,6 +499,7 @@ def filterRegionByPopularColour(image):
 
 # automatically detecting and highlighting obstacles that rise above the road surface plane (vehicles, pedestrians, bollards etc.) as they appear directly in front of the vehicles
 def detectObjects(image):
+    # https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_feature2d/py_features_harris/py_features_harris.html
     gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
 
     gray = np.float32(gray)
@@ -514,31 +517,38 @@ def detectObjects(image):
 
 
 
-def batchViewImages(images):
-    counts = len(images)
-    if counts == 1:
-        return images[0]
-    if counts == 2:
-        stack = np.hstack((images[0], images[1]))
-        return cv2.resize(stack, (0,0), fx=0.5, fy=0.5) 
-    if counts == 3:
-        p1 = np.hstack((images[0], images[1]))
-        p2 = np.hstack((images[2], images[2]))
-        stack = np.vstack((p1, p2))
-        return cv2.resize(stack, (0,0), fx=0.5, fy=0.5) 
-    if counts == 4:
-        p1 = np.hstack((images[0], images[1]))
-        p2 = np.hstack((images[2], images[3]))
-        stack = np.vstack((p1, p2))
-        return cv2.resize(stack, (0,0), fx=0.5, fy=0.5)
-    else:
-        pass
-    # numpy_vertical = np.vstack((image, grey_3_channel))
-    # numpy_horizontal = np.hstack((image, grey_3_channel))
+# def batchViewImages(images):
+#     counts = len(images)
+#     if counts == 1:
+#         return images[0]
+#     if counts == 2:
+#         stack = np.hstack((images[0], images[1]))
+#         return cv2.resize(stack, (0,0), fx=0.5, fy=0.5) 
+#     if counts == 3:
+#         p1 = np.hstack((images[0], images[1]))
+#         p2 = np.hstack((images[2], images[2]))
+#         stack = np.vstack((p1, p2))
+#         return cv2.resize(stack, (0,0), fx=0.5, fy=0.5) 
+#     if counts == 4:
+#         p1 = np.hstack((images[0], images[1]))
+#         p2 = np.hstack((images[2], images[3]))
+#         stack = np.vstack((p1, p2))
+#         return cv2.resize(stack, (0,0), fx=0.5, fy=0.5)
+#     else:
+#         pass
+#     # numpy_vertical = np.vstack((image, grey_3_channel))
+#     # numpy_horizontal = np.hstack((image, grey_3_channel))
 
-    # numpy_vertical_concat = np.concatenate((image, grey_3_channel), axis=0)
-    # numpy_horizontal_concat = np.concatenate((image, grey_3_channel), axis=1)
-    return False
+#     # numpy_vertical_concat = np.concatenate((image, grey_3_channel), axis=0)
+#     # numpy_horizontal_concat = np.concatenate((image, grey_3_channel), axis=1)
+#     return False
+
+# def batchViewImages(images):
+#     f, axarr = plt.subplots(2,2)
+#     axarr[0,1].imshow(imgR2)
+#     axarr[0,0].imshow(imgL2)
+#     axarr[1,0].imshow(disparity_scaled2)
+#     plt.show()
 
 # def batchViewImages(images):
 #     # translated from C code here:

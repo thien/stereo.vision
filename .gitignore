@@ -2,3 +2,4 @@ dataset/*
 ./DS_Store
 *.pyc
 *.txt
+.DS_Store
