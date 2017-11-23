@@ -4,7 +4,9 @@ import numpy as np
 import random
 import os
 import csv
-from multiprocessing import Pool
+
+# import multiprocessor
+from multiprocessing import Process, Queue, Pool
 
 
 # focal length in pixels
@@ -246,8 +248,8 @@ def projectDisparityTo3d(disparity, max_disparity, rgb=[], heightRange=False):
                     else:
                         points.append([X,Y,Z]);
     else:
-        for y in range(0,height-1, 2): # 0 - height is the y axis index
-            for x in range(0,width-1, 2): # 0 - width is the x axis index
+        for y in range(height): # 0 - height is the y axis index
+            for x in range(width): # 0 - width is the x axis index
                 # if we have a valid non-zero disparity
                 # points.append(disparity3DCalculation(x,y,disparity,f,B, rgb))
                 if (disparity[y,x] > 0):
@@ -265,22 +267,26 @@ def projectDisparityTo3d(disparity, max_disparity, rgb=[], heightRange=False):
                         points.append([X,Y,Z]);
     return points;
 
-def process_list(contents):
+def process_list(disparity, max_disparity, height_range, queue, rgb=[]):
     print("WE ARE PROCESSING")
-    if len(contents) > 3:
-        disparity, max_disparity, height_range, rgb = contents[0], contents[1], contents[2], contents[3]
+    results = None
+    if len(rgb) > 0:
         results = projectDisparityTo3d(disparity, max_disparity, rgb, height_range)
     else:
-        disparity, max_disparity, height_range = contents[0], contents[1], contents[2]
         results = projectDisparityTo3d(disparity, max_disparity, heightRange=height_range)
+    queue.put(results)
     print("we is done")
-    return results
+    return None
 
 
 def projectDisparityMultiProcessing(disparity, max_disparity, rgb=[]):
     # make sure we have one available.
-    cpuCount = os.cpu_count()*2
-    cpu_pool = Pool(cpuCount) 
+    cpuCount = os.cpu_count()
+    
+    gamePool = []
+    # create game queue
+    queue = Queue()
+
 
     print("init split")
     # split heights so we can parallelise them.
@@ -294,20 +300,33 @@ def projectDisparityMultiProcessing(disparity, max_disparity, rgb=[]):
         else:
             tail += inc
         height_range = (head, tail)
-        if len(rgb) > 0:
-            caps.append((disparity, max_disparity, height_range, rgb))
-        else:
-            caps.append((disparity, max_disparity, height_range))
-        head = tail+1
 
-    print("doing multiprocessing..")
-    pool_outputs = cpu_pool.map(process_list, caps)
-    print("closing taks")
-    cpu_pool.close() # no more tasks
-    print("wrap tasks")
-    cpu_pool.join()  # wrap up current tasks
-    print("done multiprocessing")
-    return pool_outputs
+        p = None
+        if len(rgb) > 0:
+            p = Process(target=process_list, args=(disparity, max_disparity, height_range, queue, rgb))
+        else:
+            p = Process(target=process_list, args=(disparity, max_disparity, height_range, queue))
+        gamePool.append(p)
+        p.start()
+        head = tail+1
+        # p.join()
+
+    for j in gamePool:
+        print("joining line")
+        j.join()
+        j.terminate()
+
+    results = []
+    counter = 0
+    # when the pool is done with processing, process the results.
+    for job in iter(queue.get, None):
+        counter += 1
+        print(counter)
+        results.append(job)
+        if counter == cpuCount:
+            break
+
+    return result
 
 
 def getNormalVectorLine(basePoint, abc, disparity):

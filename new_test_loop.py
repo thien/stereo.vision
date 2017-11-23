@@ -70,38 +70,37 @@ options = {
     'max_disparity' : 64,
     'ransac_trials' : 600,
     'loop': True,
-    'point_threshold' : 0.02
+    'point_threshold' : 0.05
 }
 # Start the loop
-try:
-    previousDisparity = None
-    for filename_l in filelist_l:
-        """
-        Here we'll cycle through the files, and finding each stereo pair.
-        We'll then process them to detect the road surface planes, and compute 
-        the stereo disparity.
-        """
 
-        # skip forward to start a file we specify by timestamp (if this is set)
-        if ((len(skip_forward_file_pattern) > 0) and not(skip_forward_file_pattern in filename_l)):
-            continue;
-        elif ((len(skip_forward_file_pattern) > 0) and (skip_forward_file_pattern in filename_l)):
-            skip_forward_file_pattern = "";
+previousDisparity = None
+for filename_l in filelist_l:
+    """
+    Here we'll cycle through the files, and finding each stereo pair.
+    We'll then process them to detect the road surface planes, and compute 
+    the stereo disparity.
+    """
 
-        # # from the left image filename get the corresponding right image
-        imageStores = f.loadImages(filename_l, path_dir_l, path_dir_r)
-        if imageStores != False:
-            imgL, imgR = imageStores
+    # skip forward to start a file we specify by timestamp (if this is set)
+    if ((len(skip_forward_file_pattern) > 0) and not(skip_forward_file_pattern in filename_l)):
+        continue;
+    elif ((len(skip_forward_file_pattern) > 0) and (skip_forward_file_pattern in filename_l)):
+        skip_forward_file_pattern = "";
 
-            imgL, previousDisparity = sv.performStereoVision(imgL, imgR, previousDisparity, options)
+    # # from the left image filename get the corresponding right image
+    imageStores = f.loadImages(filename_l, path_dir_l, path_dir_r)
+    if imageStores != False:
+        imgL, imgR = imageStores
 
-            # ● Your program must compile and work with OpenCV 3.3 on the lab PCs.
-    
-        else:
-            print("-- files skipped (perhaps one is missing or not PNG)");
+        imgL, previousDisparity = sv.performStereoVision(imgL, imgR, previousDisparity, options)
 
-except Exception as error:
-    print("Exception:", error)
+        # ● Your program must compile and work with OpenCV 3.3 on the lab PCs.
+
+    else:
+        print("-- files skipped (perhaps one is missing or not PNG)");
+
+
 # close all windows
 
 cv2.destroyAllWindows()
