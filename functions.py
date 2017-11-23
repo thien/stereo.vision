@@ -246,8 +246,8 @@ def projectDisparityTo3d(disparity, max_disparity, rgb=[], heightRange=False):
                     else:
                         points.append([X,Y,Z]);
     else:
-        for y in range(height): # 0 - height is the y axis index
-            for x in range(width): # 0 - width is the x axis index
+        for y in range(0,height-1, 2): # 0 - height is the y axis index
+            for x in range(0,width-1, 2): # 0 - width is the x axis index
                 # if we have a valid non-zero disparity
                 # points.append(disparity3DCalculation(x,y,disparity,f,B, rgb))
                 if (disparity[y,x] > 0):

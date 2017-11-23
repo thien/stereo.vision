@@ -70,7 +70,7 @@ options = {
     'max_disparity' : 64,
     'ransac_trials' : 600,
     'loop': True,
-    'point_threshold' : 0.02
+    'point_threshold' : 0.05
 }
 # Start the loop
 

@@ -38,11 +38,11 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # cap the disparity since we know we don't really need most of the information there.
     cappedDisparity = f.capDisparity(disparity)
 
-    time_start = datetime.datetime.now()
-    f.projectDisparityMultiProcessing(disparity,opt['max_disparity'], imgL)
-    f.projectDisparityMultiProcessing(maskedDisparity,opt['max_disparity'])
-    time_end = datetime.datetime.now()
-    print(time_end - time_start)
+    # time_start = datetime.datetime.now()
+    # f.projectDisparityMultiProcessing(disparity,opt['max_disparity'], imgL)
+    # f.projectDisparityMultiProcessing(maskedDisparity,opt['max_disparity'])
+    # time_end = datetime.datetime.now()
+    # print(time_end - time_start)
     # project to a 3D colour point cloud (with or without colour)
 
     time_start = datetime.datetime.now()
