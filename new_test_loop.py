@@ -70,7 +70,7 @@ filelist_l = sorted(os.listdir(path_dir_l));
 
 if options['record_video']:
     fourcc = cv2.VideoWriter_fourcc(*'MJPG')  # cv2.VideoWriter_fourcc() does not exist
-    video_writer = cv2.VideoWriter(opt['video_filename'], fourcc, 8, (1024, 272))
+    video_writer = cv2.VideoWriter(options['video_filename'], fourcc, 8, (1024, 272))
 else:
     fourcc = None
     video_writer = None
@@ -104,7 +104,7 @@ for filename_l in filelist_l:
         print("-- files skipped (perhaps one is missing or not PNG)");
 
 if options['record_video']:
-    print("Video saved to:", opt['video_filename'])
+    print("Video saved to:", options['video_filename'])
     video_writer.release()
 
 # close all windows
