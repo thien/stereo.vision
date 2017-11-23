@@ -30,7 +30,7 @@ directory_to_cycle_right = "right-images";
 
 # set to timestamp to skip forward to, optional (empty for start)
 # e.g. set to 1506943191.487683 for the end of the Bailey, just as the vehicle turns
-skip_forward_file_pattern = "1506942498.475580_L";
+skip_forward_file_pattern = "";
 
 
 options = {
