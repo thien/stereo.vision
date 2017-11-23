@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import functions as f
 import datetime
 
+# setup the disparity stereo processor to find a maximum of 128 disparity values
+# (adjust parameters if needed - this will effect speed to processing)
 default_options = {
     'crop_disparity' : False, # display full or cropped disparity image
     'pause_playback' : False, # pause until key press after each image
@@ -21,7 +23,7 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
 
     # assign reference image
     referenceImage = imgL
-    images.append(("Reference Image",referenceImage))
+    # images.append(("Reference Image",referenceImage))
 
     # perform preprocessing.
     imgL, imgR = f.preProcessImages(imgL,imgR)
@@ -106,13 +108,18 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # cv2.polylines(imgL,[pts],True,(0,255,255), 3)
     # print(pts)
 
+    imageRoadMap = imgL.copy()
     print("Drawing original points on image map..")
     for i in pts:
-        imgL[i[0][1]][i[0][0]] = [0,255,0]
+        imageRoadMap[i[0][1]][i[0][0]] = [0,255,0]
+    images.append(("Image Road Map",imageRoadMap))
 
     print("Sanitizing Road Points..")
-    roadImage, ptz = f.generatePointsAsImage(pts, np.size(imgL, 0), np.size(imgL, 1))
-    # _,contours,_ = cv2.findContours(roadImage,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+    roadImage = f.generatePointsAsImage(pts)
+
+    images.append(("Road Image",roadImage))
+    cleanedRoadImage, ptz = f.sanitiseRoadImage(roadImage, opt['img_size'])
+    images.append(("Filtered Road Image",cleanedRoadImage))
 
     try:
         # generate convex hull 
@@ -129,25 +136,10 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
         print("There was an error with generating a hull:", e)
 
 
-    images.append(("Road Image",roadImage))
-    images.append(("Result",imgL))
     images.append(("Result",imgL))
 
     resulto = f.batchImages(images, opt['img_size'])
     if opt['loop'] == True:
-
-        # # show disparity
-        # cv2.imshow("disparity", disparity)
-        # # cv2.imshow("maskedDisp", maskedDisparity)
-        # # cv2.imshow("canny", canny)
-        # cv2.imshow('Result',imgL)
-        # cv2.imshow('road',roadImage)
-        # # foo, axarr = plt.subplots(2,2)
-        # # axarr[0,1].imshow(disparity)
-        # # axarr[0,0].imshow(maskedDisparity)
-        # # axarr[1,0].imshow(canny)
-        # # axarr[1,1].imshow(imgL)
         cv2.imshow('Result',resulto)
-        # foo.canvas.draw()
         f.handleKey(cv2, opt['pause_playback'], disparity, imgL, imgR, opt['crop_disparity'])
     return resulto, previousDisparity

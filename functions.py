@@ -496,13 +496,17 @@ def removeSmallParticles(image, threshold=20):
             cv2.drawContours(image,[spectacle],0,0,-1)
     return image
 
-def generatePointsAsImage(points, height, width):
+def generatePointsAsImage(points):
     # https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html
     img = blackImg.copy()
     # draw points on image.
     for i in points:
         img[i[0][1]][i[0][0]] = 255
 
+    return img
+
+def sanitiseRoadImage(img, size):
+    (height, width) = size
     referenceImg = img.copy()
     # perform closing on the image to fill holes
     kernel = np.ones((9,9),np.uint8)
@@ -531,7 +535,6 @@ def generatePointsAsImage(points, height, width):
                 pts.append(k)
     pts = np.matrix(pts)
     return img, pts
-
 # -------------------------------------------------------------------
 
 def RANSAC(points, trials):

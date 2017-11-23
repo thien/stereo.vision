@@ -62,17 +62,6 @@ path_dir_r =  os.path.join(dataset_path, directory_to_cycle_right);
 # get a list of the left image files and sort them (by timestamp in filename)
 filelist_l = sorted(os.listdir(path_dir_l));
 
-# setup the disparity stereo processor to find a maximum of 128 disparity values
-# (adjust parameters if needed - this will effect speed to processing)
-options = {
-    'crop_disparity' : False, # display full or cropped disparity image
-    'pause_playback' : False, # pause until key press after each image
-    'max_disparity' : 64,
-    'ransac_trials' : 600,
-    'loop': True,
-    'point_threshold' : 0.05
-}
-# Start the loop
 
 previousDisparity = None
 for filename_l in filelist_l:
@@ -93,14 +82,12 @@ for filename_l in filelist_l:
     if imageStores != False:
         imgL, imgR = imageStores
 
-        imgL, previousDisparity = sv.performStereoVision(imgL, imgR, previousDisparity)
+        image, previousDisparity = sv.performStereoVision(imgL, imgR, previousDisparity)
 
         # ● Your program must compile and work with OpenCV 3.3 on the lab PCs.
 
     else:
         print("-- files skipped (perhaps one is missing or not PNG)");
-
-
+        
 # close all windows
-
 cv2.destroyAllWindows()
