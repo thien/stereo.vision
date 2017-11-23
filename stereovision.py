@@ -7,16 +7,22 @@ import functions as f
 import datetime
 
 default_options = {
-    'crop_disparity' : False,
-    'pause_playback' : False,
-    'max_disparity' : 1024,
+    'crop_disparity' : False, # display full or cropped disparity image
+    'pause_playback' : False, # pause until key press after each image
+    'max_disparity' : 64,
     'ransac_trials' : 600,
-    'loop' : False,
-    'point_threshold' : 0.02
+    'loop': True,
+    'point_threshold' : 0.05,
+    'img_size' : (544,1024)
 }
 
 def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
-    
+    images = []
+
+    # assign reference image
+    referenceImage = imgL
+    images.append(("Reference Image",referenceImage))
+
     # perform preprocessing.
     imgL, imgR = f.preProcessImages(imgL,imgR)
     # make image greyscale
@@ -32,6 +38,8 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # save the disparity and return that for the next iteration in the loop.
     previousDisparity = disparity
 
+    images.append(("Disparity",disparity))
+
     # mask the disparity s.t we have a reccomended filter range.
     maskedDisparity = f.maskDisparity(disparity)
 
@@ -43,8 +51,8 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # f.projectDisparityMultiProcessing(maskedDisparity,opt['max_disparity'])
     # time_end = datetime.datetime.now()
     # print(time_end - time_start)
-    # project to a 3D colour point cloud (with or without colour)
 
+    # project to a 3D colour point cloud
     time_start = datetime.datetime.now()
     print("projecting disparity to 3D..")
     points = f.projectDisparityTo3d(disparity, opt['max_disparity'], imgL)
@@ -52,22 +60,13 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     time_end = datetime.datetime.now()
     print(time_end - time_start)
 
-    # assign reference image
-    referenceImage = imgL
 
     # canny = f.performCanny(grayL)
-
-    # write to file in an X simple ASCII X Y Z format that can be viewed in 3D
-    # f.saveCoords(points, '3d_points.txt')
-
-    # filter the points by height
-    # function() that filters points
 
     # then here we compute ransac which will give us the coefficents for our plane.
     normal, abc = f.RANSAC(maskpoints, opt['ransac_trials'])
 
     # we calculate the error distances between the points on the disparity and the plane.
-
     pointDifferences = f.calculatePointErrors(abc, points)
 
     # here we allocate a threshold s.t if it is beyond this level, we discard the point.
@@ -109,8 +108,6 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
 
     print("Drawing original points on image map..")
     for i in pts:
-        # print(i)
-
         imgL[i[0][1]][i[0][0]] = [0,255,0]
 
     print("Sanitizing Road Points..")
@@ -121,45 +118,36 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
         # generate convex hull 
         print("Generating Convex Hull..")
         hull = cv2.convexHull(ptz)
-
         # draw hull on image L.
         cv2.drawContours(imgL,[hull],0,(0,0,255),5)
+        # get center point from the hull points.
+        center =  f.getCenterPoint(hull)
+        # draw normal line.
+        imgL = f.drawNormalLine(imgL, center, normal, disparity)
 
-        print("Generating Normal Arrow..")
-        # get center point of the area.
-        (x,y),_ = cv2.minEnclosingCircle(hull)
-        center = (int(x),int(y))
-        print("Center point:", center)
-        
-        newLine = f.getNormalVectorLine(center, normal, disparity)
-        lineThickness = 2
-        normalLineColor = (20,185,255)
-        cv2.line(imgL, center, newLine, normalLineColor, lineThickness)
-        circleHeadColour = (normalLineColor[0]+10, normalLineColor[1]+10, normalLineColor[2]+10)
-        cv2.circle(imgL, newLine, 2, circleHeadColour, thickness=10, lineType=8, shift=0)
-
-    
     except Exception as e:
         print("There was an error with generating a hull:", e)
 
-    print("Loading Image..")
-    cv2.imshow('Result',roadImage)
 
+    images.append(("Road Image",roadImage))
+    images.append(("Result",imgL))
+    images.append(("Result",imgL))
 
+    resulto = f.batchImages(images, opt['img_size'])
     if opt['loop'] == True:
 
-        # show disparity
-        cv2.imshow("disparity", disparity)
-        # cv2.imshow("maskedDisp", maskedDisparity)
-        # cv2.imshow("canny", canny)
-        cv2.imshow('Result',imgL)
-        cv2.imshow('road',roadImage)
-        # foo, axarr = plt.subplots(2,2)
-        # axarr[0,1].imshow(disparity)
-        # axarr[0,0].imshow(maskedDisparity)
-        # axarr[1,0].imshow(canny)
-        # axarr[1,1].imshow(imgL)
-
+        # # show disparity
+        # cv2.imshow("disparity", disparity)
+        # # cv2.imshow("maskedDisp", maskedDisparity)
+        # # cv2.imshow("canny", canny)
+        # cv2.imshow('Result',imgL)
+        # cv2.imshow('road',roadImage)
+        # # foo, axarr = plt.subplots(2,2)
+        # # axarr[0,1].imshow(disparity)
+        # # axarr[0,0].imshow(maskedDisparity)
+        # # axarr[1,0].imshow(canny)
+        # # axarr[1,1].imshow(imgL)
+        cv2.imshow('Result',resulto)
         # foo.canvas.draw()
         f.handleKey(cv2, opt['pause_playback'], disparity, imgL, imgR, opt['crop_disparity'])
-    return imgL, previousDisparity
+    return resulto, previousDisparity

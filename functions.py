@@ -30,7 +30,11 @@ view_range = cv2.imread("masks/view_range.png", cv2.IMREAD_GRAYSCALE);
 plane_sample = cv2.imread("masks/plane_sample.png", cv2.IMREAD_GRAYSCALE);
 carmask = cv2.bitwise_and(car_front_mask,car_front_mask,mask = view_range)
 
+# https://stackoverflow.com/questions/24814941/concave-hull-with-missing-edges
+# https://github.com/pmneila/morphsnakes
+
 # -------------------------------------------------------------------
+
 
 def loadImages(filename_l, path_dir_l, path_dir_r):
     """
@@ -478,6 +482,9 @@ def planarFitting(randomPoints, points):
     return abc, normal, dist
 
 
+def getCenterPoint(points):
+    (x,y),_ = cv2.minEnclosingCircle(points)
+    return (int(x),int(y))
 
 # removes artifacts.
 def removeSmallParticles(image, threshold=20):
@@ -698,30 +705,79 @@ def detectObjects(image):
 
 # -------------------------------------------------------------------
 
-# def batchViewImages(images):
-#     counts = len(images)
-#     if counts == 1:
-#         return images[0]
-#     if counts == 2:
-#         stack = np.hstack((images[0], images[1]))
-#         return cv2.resize(stack, (0,0), fx=0.5, fy=0.5) 
-#     if counts == 3:
-#         p1 = np.hstack((images[0], images[1]))
-#         p2 = np.hstack((images[2], images[2]))
-#         stack = np.vstack((p1, p2))
-#         return cv2.resize(stack, (0,0), fx=0.5, fy=0.5) 
-#     if counts == 4:
-#         p1 = np.hstack((images[0], images[1]))
-#         p2 = np.hstack((images[2], images[3]))
-#         stack = np.vstack((p1, p2))
-#         return cv2.resize(stack, (0,0), fx=0.5, fy=0.5)
-#     else:
-#         pass
-#     # numpy_vertical = np.vstack((image, grey_3_channel))
-#     # numpy_horizontal = np.hstack((image, grey_3_channel))
 
-#     # numpy_vertical_concat = np.concatenate((image, grey_3_channel), axis=0)
-#     # numpy_horizontal_concat = np.concatenate((image, grey_3_channel), axis=1)
+
+def drawNormalLine(baseImage, center, normal, disparity):
+    newLine = getNormalVectorLine(center, normal, disparity)
+    lineThickness = 2
+    normalLineColor = (20,185,255)
+    cv2.line(baseImage, center, newLine, normalLineColor, lineThickness)
+    circleHeadColour = (normalLineColor[0]+10, normalLineColor[1]+10, normalLineColor[2]+10)
+    cv2.circle(baseImage, newLine, 2, circleHeadColour, thickness=10, lineType=8, shift=0)
+    return baseImage
+
+def resizeImage(image, height, width):
+    image = cv2.resize(image, (width, height))
+    return image
+
+def batchImages(imgList, size):
+    # for each image, resize them.
+    counts = len(imgList)
+
+    # resize all images s.t they all fit accordingly.
+    images = []
+    for i in imgList:
+        fixedScaleImg = resizeImage(i[1], size[0], size[1])
+        # check if greyscale
+        dim = len(fixedScaleImg.shape)
+        if dim != 3:
+            # convert to colour.
+            fixedScaleImg = cv2.cvtColor(fixedScaleImg, cv2.COLOR_GRAY2BGR)
+        # add to list.
+        images.append(fixedScaleImg)
+        
+
+
+    # numpy_vertical = np.vstack((image, grey_3_channel))
+    # numpy_horizontal = np.hstack((image, grey_3_channel))
+
+    # numpy_vertical_concat = np.concatenate((image, grey_3_channel), axis=0)
+    # numpy_horizontal_concat = np.concatenate((image, grey_3_channel), axis=1)
+    if counts == 1:
+        return images[0]
+    if counts == 2:
+        stack = np.hstack((images[0], images[1]))
+        return cv2.resize(stack, (0,0), fx=0.5, fy=0.5) 
+    if counts == 3:
+        p1 = np.hstack((images[0], images[1]))
+        p2 = np.hstack((images[2], images[2]))
+        stack = np.vstack((p1, p2))
+        return cv2.resize(stack, (0,0), fx=0.5, fy=0.5) 
+    if counts == 4:
+        p1 = np.hstack((images[0], images[1]))
+        p2 = np.hstack((images[2], images[3]))
+        stack = np.vstack((p1, p2))
+        return cv2.resize(stack, (0,0), fx=0.5, fy=0.5)
+    if counts == 4:
+        p1 = np.hstack((images[0], images[1]))
+        p2 = np.hstack((images[2], images[3]))
+        stack = np.vstack((p1, p2))
+        return cv2.resize(stack, (0,0), fx=0.5, fy=0.5)
+    if counts == 5:
+        p1 = np.hstack((images[0], images[1]))
+        p2 = np.hstack((images[2], images[3]))
+        stack = np.vstack((p1, p2))
+        l = cv2.resize(stack, (0,0), fx=0.25, fy=0.25)
+        r =  cv2.resize(images[4], (0,0), fx=0.5, fy=0.5)
+        r = np.hstack((l, r))
+        return r
+    else:
+        pass
+
+
+
+# def batchViewImages(images):
+
 #     return False
 
 # def batchViewImages(images):

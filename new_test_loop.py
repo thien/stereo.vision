@@ -93,7 +93,7 @@ for filename_l in filelist_l:
     if imageStores != False:
         imgL, imgR = imageStores
 
-        imgL, previousDisparity = sv.performStereoVision(imgL, imgR, previousDisparity, options)
+        imgL, previousDisparity = sv.performStereoVision(imgL, imgR, previousDisparity)
 
         # ● Your program must compile and work with OpenCV 3.3 on the lab PCs.
 

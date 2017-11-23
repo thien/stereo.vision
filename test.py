@@ -38,7 +38,8 @@ options = {
     'max_disparity' : 128,
     'ransac_trials' : 500,
     'loop' : False,
-    'point_threshold' : 0.1
+    'point_threshold' : 0.1,
+    'img_size' : (544,1024)
 }
 # setup the disparity stereo processor to find a maximum of 128 disparity values
 # (adjust parameters if needed - this will effect speed to processing)
