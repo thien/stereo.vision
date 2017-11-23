@@ -42,7 +42,7 @@ import stereovision as sv
 # ---------------------------------------------------------------------------
 
 # obvious variable name for the dataset directory
-dataset_path = "dataset";
+dataset_path = "TTBB-durham-02-10-17-sub10";
 
 # optional edits (if needed)
 directory_to_cycle_left = "left-images";
@@ -88,6 +88,6 @@ for filename_l in filelist_l:
 
     else:
         print("-- files skipped (perhaps one is missing or not PNG)");
-        
+
 # close all windows
 cv2.destroyAllWindows()

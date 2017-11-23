@@ -8,7 +8,7 @@ import stereovision as sv
 # ---------------------------------------------------------------------------
 
 # obvious variable name for the dataset directory
-dataset_path = "dataset";
+dataset_path = "TTBB-durham-02-10-17-sub10";
 
 # optional edits (if needed)
 directory_to_cycle_left = "left-images";
