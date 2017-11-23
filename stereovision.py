@@ -1,7 +1,6 @@
 # imports, don't touch them lol
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
 # import csv
 import functions as f
 import datetime
@@ -19,6 +18,7 @@ default_options = {
 }
 
 def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
+    time_start = datetime.datetime.now()
     images = []
 
     # assign reference image
@@ -55,31 +55,22 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # print(time_end - time_start)
 
     # project to a 3D colour point cloud
-    time_start = datetime.datetime.now()
-    print("projecting disparity to 3D..")
     points = f.projectDisparityTo3d(disparity, opt['max_disparity'], imgL)
     maskpoints = f.projectDisparityTo3d(maskedDisparity, opt['max_disparity'])
-    time_end = datetime.datetime.now()
-    print(time_end - time_start)
-
 
     # canny = f.performCanny(grayL)
 
     # then here we compute ransac which will give us the coefficents for our plane.
     normal, abc = f.RANSAC(maskpoints, opt['ransac_trials'])
-
+    print("Normal:", str(round(normal[0][0],4))+"x +", str(round(normal[1][0],4))+"y +", str(round(normal[2],4)) + "z")
     # we calculate the error distances between the points on the disparity and the plane.
     pointDifferences = f.calculatePointErrors(abc, points)
 
-    # here we allocate a threshold s.t if it is beyond this level, we discard the point.
-    print("Point Threshold:", opt['point_threshold'])
-
     # compute good points.
-    print("Thresholding the points..")
+    # here we allocate a threshold s.t if it is beyond this level, we discard the point.
     points = f.computePlanarThreshold(points,pointDifferences,opt['point_threshold'])
 
     # now we sanitise the points.
-    print("Calculating Histogram of Points..")
     histogram = f.calculateColourHistogram(points)
 
     pointColourThreshold = 20
@@ -87,7 +78,6 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # ----------------------------------------
 
     # ● For the purposes of this assignment when a road has either curved road edges or other complexities due to the road configuration (e.g. junctions, roundabouts, road type, occlusions) report and display the road boundaries as far as possible using a polygon or an alternative pixel-wise boundary.
-    print("Projecting 3D Points to 2D Image points..")
 
     # convert 3D points back into 2d.
     pts = f.project3DPointsTo2DImagePoints(points)
@@ -109,12 +99,11 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # print(pts)
 
     imageRoadMap = imgL.copy()
-    print("Drawing original points on image map..")
     for i in pts:
         imageRoadMap[i[0][1]][i[0][0]] = [0,255,0]
     images.append(("Image Road Map",imageRoadMap))
 
-    print("Sanitizing Road Points..")
+
     roadImage = f.generatePointsAsImage(pts)
 
     images.append(("Road Image",roadImage))
@@ -123,7 +112,6 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
 
     try:
         # generate convex hull 
-        print("Generating Convex Hull..")
         hull = cv2.convexHull(ptz)
         # draw hull on image L.
         cv2.drawContours(imgL,[hull],0,(0,0,255),5)
@@ -139,6 +127,10 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     images.append(("Result",imgL))
 
     resulto = f.batchImages(images, opt['img_size'])
+
+    time_end = datetime.datetime.now()
+    print("Time Taken:",time_end - time_start)
+    print("--------")
     if opt['loop'] == True:
         cv2.imshow('Result',resulto)
         f.handleKey(cv2, opt['pause_playback'], disparity, imgL, imgR, opt['crop_disparity'])

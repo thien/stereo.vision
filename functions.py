@@ -57,7 +57,6 @@ def loadImages(filename_l, path_dir_l, path_dir_r):
         # for sanity print out these filenames
         print(full_path_filename_l);
         print(full_path_filename_r);
-        print();
 
         return (imgL, imgR)
     else:
@@ -98,7 +97,7 @@ def preProcessImages(imgL,imgR):
         # k = (maxIntensity/phi)*(images[i]/(maxIntensity/theta))**0.5
         # images[i] = np.array(k,dtype='uint8')
 
-
+        
         images[i] = gammaChange(images[i], 1.4)
         # img_hsl = cv2.cvtColor(images[i], cv2.COLOR_BGR2HLS)
         hsv = cv2.cvtColor(images[i], cv2.COLOR_BGR2HSV)
@@ -113,6 +112,7 @@ def greyscale(imgL,imgR):
     images = [imgL, imgR]
     for i in range(len(images)):
         images[i] = cv2.cvtColor(images[i], cv2.COLOR_BGR2GRAY);
+        images[i] = cv2.equalizeHist(images[i])
     imgL, imgR = images[0],images[1]
     return (imgL, imgR)
 
@@ -270,14 +270,14 @@ def projectDisparityTo3d(disparity, max_disparity, rgb=[], heightRange=False):
     return points;
 
 def process_list(contents):
-    print("WE ARE PROCESSING")
+    # print("WE ARE PROCESSING")
     if len(contents) > 3:
         disparity, max_disparity, height_range, rgb = contents[0], contents[1], contents[2], contents[3]
         results = projectDisparityTo3d(disparity, max_disparity, rgb, height_range)
     else:
         disparity, max_disparity, height_range = contents[0], contents[1], contents[2]
         results = projectDisparityTo3d(disparity, max_disparity, heightRange=height_range)
-    print("we is done")
+    # print("we is done")
     return results
 
 
@@ -334,7 +334,6 @@ def getNormalVectorLine(basePoint, abc, disparity):
     newX = ((newX * camera_focal_length_px) / Z) + image_centre_w;
     newY = ((newY * camera_focal_length_px) / Z) + image_centre_h;
 
-    print([newX,newY[0]])
     results = (int(newX), int(newY[0]))
     return results
 
@@ -539,14 +538,12 @@ def sanitiseRoadImage(img, size):
 
 def RANSAC(points, trials):
     # Your solution must use a RANdom SAmple and Consensus (RANSAC) approach to perform the detection of the 3D plane in front of the vehicle (when and where possible).
-
-    print("Computing RANSAC..")
     bestPlane = (None, None)
     bestError = float("inf")
     
     for i in range(trials):
         # select T data points randomly
-        T = random.sample(points, 400)
+        T = random.sample(points, 600)
         # estimate the plane using this subset of information
         coefficents, normal, dist = planarFitting(T, points)
         error = np.mean(dist)
@@ -556,7 +553,6 @@ def RANSAC(points, trials):
             bestPlane = (normal,coefficents)
             bestError = error
             # print("New Best Error:", error)
-    print("RANSAC computed.")
     return bestPlane
 
 # -------------------------------------------------------------------
@@ -661,8 +657,6 @@ def getPtsAgain(plane_shape):
             if plane_shape[i][j] != 0:
                 pts.append([[i,j]])
     pts = np.array(pts).astype("uint8")
-    print("--")
-    print(pts)
     return pts  
 
 def drawConvexHull(pts, base, thickness=1, colour=(0,0,255)):
