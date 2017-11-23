@@ -35,11 +35,14 @@ filename_l = "1506942475.481834_L.png"
 options = {
     'crop_disparity' : False, # display full or cropped disparity image
     'pause_playback' : False, # pause until key press after each image
-    'max_disparity' : 128,
-    'ransac_trials' : 500,
-    'loop' : False,
-    'point_threshold' : 0.1,
-    'img_size' : (544,1024)
+    'max_disparity' : 64,
+    'ransac_trials' : 600,
+    'loop': True,
+    'point_threshold' : 0.03,
+    'img_size' : (544,1024),
+    'threshold_option' : 'previous', # options are: 'previous' or 'mean'
+    'record_video' : False,
+    'video_filename' : 'previous.avi'
 }
 # setup the disparity stereo processor to find a maximum of 128 disparity values
 # (adjust parameters if needed - this will effect speed to processing)

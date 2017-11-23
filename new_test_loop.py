@@ -41,7 +41,7 @@ options = {
     'loop': True,
     'point_threshold' : 0.03,
     'img_size' : (544,1024),
-    'threshold_option' : 'previous',
+    'threshold_option' : 'previous', # options are: 'previous' or 'mean'
     'record_video' : True,
     'video_filename' : 'previous.avi'
 }
