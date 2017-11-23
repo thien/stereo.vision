@@ -19,16 +19,7 @@ Task Specification – Road Surface Region Detection
 """
     http://resources.mpi-inf.mpg.de/TemporalStereo/articleJpeg.pdf
 """
-# imports, don't touch them lol
-import cv2
-import os
-import random
-import numpy as np
-import csv
-import functions as f
-import stereovision as sv
 
-# ---------------------------------------------------------------------------
 
 # obvious variable name for the dataset directory
 dataset_path = "TTBB-durham-02-10-17-sub10";
@@ -39,10 +30,35 @@ directory_to_cycle_right = "right-images";
 
 # set to timestamp to skip forward to, optional (empty for start)
 # e.g. set to 1506943191.487683 for the end of the Bailey, just as the vehicle turns
-skip_forward_file_pattern = "";
+skip_forward_file_pattern = "1506942498.475580_L";
 
 
-# ---------------------------------------------------------------------------
+options = {
+    'crop_disparity' : False, # display full or cropped disparity image
+    'pause_playback' : False, # pause until key press after each image
+    'max_disparity' : 64,
+    'ransac_trials' : 600,
+    'loop': True,
+    'point_threshold' : 0.03,
+    'img_size' : (544,1024),
+    'threshold_option' : 'previous',
+    'record_video' : True,
+    'video_filename' : 'previous.avi'
+}
+
+# ------------------------------------------------------------------------
+# Don't edit below this line!
+# ------------------------------------------------------------------------
+
+# imports, don't touch them lol
+import cv2
+import os
+import random
+import numpy as np
+import csv
+import functions as f
+import stereovision as sv
+
 
 # resolve full directory location of data set for left / right images
 path_dir_l =  os.path.join(dataset_path, directory_to_cycle_left);
@@ -51,8 +67,13 @@ path_dir_r =  os.path.join(dataset_path, directory_to_cycle_right);
 # get a list of the left image files and sort them (by timestamp in filename)
 filelist_l = sorted(os.listdir(path_dir_l));
 
-fourcc =  cv2.VideoWriter_fourcc(*'MJPG')  # cv2.VideoWriter_fourcc() does not exist
-video_writer = cv2.VideoWriter("output.avi", fourcc, 8, (1024, 272))
+
+if options['record_video']:
+    fourcc = cv2.VideoWriter_fourcc(*'MJPG')  # cv2.VideoWriter_fourcc() does not exist
+    video_writer = cv2.VideoWriter(opt['video_filename'], fourcc, 8, (1024, 272))
+else:
+    fourcc = None
+    video_writer = None
 
 previousDisparity = None
 for filename_l in filelist_l:
@@ -73,14 +94,18 @@ for filename_l in filelist_l:
     if imageStores != False:
         imgL, imgR = imageStores
 
-        image, previousDisparity = sv.performStereoVision(imgL, imgR, previousDisparity)
-        video_writer.write(image)
+        image, previousDisparity = sv.performStereoVision(imgL, imgR, previousDisparity, options)
+
+        if options['record_video']:
+            video_writer.write(image)
         # ● Your program must compile and work with OpenCV 3.3 on the lab PCs.
 
     else:
         print("-- files skipped (perhaps one is missing or not PNG)");
 
-video_writer.release()
+if options['record_video']:
+    print("Video saved to:", opt['video_filename'])
+    video_writer.release()
 
 # close all windows
 cv2.destroyAllWindows()

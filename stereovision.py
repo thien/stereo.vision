@@ -14,7 +14,9 @@ default_options = {
     'ransac_trials' : 600,
     'loop': True,
     'point_threshold' : 0.03,
-    'img_size' : (544,1024)
+    'img_size' : (544,1024),
+    'threshold_option' : 'previous',
+    'video_filename' : 'previous.avi'
 }
 
 def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
@@ -33,11 +35,13 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # compute disparity image
     disparity = f.disparity(grayL,grayR, opt['max_disparity'], opt['crop_disparity'])
 
-
-    disparity = f.fillAltDisparity(disparity)
-    # load previous disparity to fill in missing content.
-    # if previousDisparity is not None:
-    #     disparity = f.fillDisparity(disparity, previousDisparity)
+    # compute disparity filling (for missing data)
+    if opt['threshold_option'] == 'previous':
+        # load previous disparity to fill in missing content.
+        if previousDisparity is not None:
+            disparity = f.fillDisparity(disparity, previousDisparity)
+    elif opt['threshold_option'] == 'mean':
+        disparity = f.fillAltDisparity(disparity)
 
     # save the disparity and return that for the next iteration in the loop.
     previousDisparity = disparity
