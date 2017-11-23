@@ -182,6 +182,26 @@ def fillDisparity(disparity, previousDisparity):
         disparity = cv2.add(disparity,filling)
     return disparity
 
+def fillAltDisparity(disparity):
+    # # get non-black points in image
+    # nonzeros = np.nonzero(disparity)
+    # # get black points on image from getting contours.
+    # ret, mask = cv2.threshold(disparity, 2, 255, cv2.THRESH_BINARY_INV)
+    # blackPoints = np.nonzero(mask)
+    # print(mask)
+
+    averagePoints = []
+    for i in disparity:
+        mean = i[i.nonzero()].mean()
+        if np.isnan(mean):
+            mean = 0.0
+        averagePoints.append(mean)
+    
+    for i in range(len(disparity)):
+        for j in range(len(disparity[i])):
+            if disparity[i][j] < 2:
+                disparity[i][j] = averagePoints[i]
+    return disparity
 
 def baseMaskDisp(disparity):
     disparity = cv2.bitwise_and(disparity,disparity,mask = plane_sample)

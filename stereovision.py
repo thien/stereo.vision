@@ -13,7 +13,7 @@ default_options = {
     'max_disparity' : 64,
     'ransac_trials' : 600,
     'loop': True,
-    'point_threshold' : 0.05,
+    'point_threshold' : 0.03,
     'img_size' : (544,1024)
 }
 
@@ -33,9 +33,11 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # compute disparity image
     disparity = f.disparity(grayL,grayR, opt['max_disparity'], opt['crop_disparity'])
 
+
+    disparity = f.fillAltDisparity(disparity)
     # load previous disparity to fill in missing content.
-    if previousDisparity is not None:
-        disparity = f.fillDisparity(disparity, previousDisparity)
+    # if previousDisparity is not None:
+    #     disparity = f.fillDisparity(disparity, previousDisparity)
 
     # save the disparity and return that for the next iteration in the loop.
     previousDisparity = disparity
@@ -55,7 +57,7 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # print(time_end - time_start)
 
     # project to a 3D colour point cloud
-    points = f.projectDisparityTo3d(disparity, opt['max_disparity'], imgL)
+    points = f.projectDisparityTo3d(cappedDisparity, opt['max_disparity'], imgL)
     maskpoints = f.projectDisparityTo3d(maskedDisparity, opt['max_disparity'])
 
     # canny = f.performCanny(grayL)
