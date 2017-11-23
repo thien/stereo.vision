@@ -471,6 +471,11 @@ def randomNonCollinearPoints(points):
     # print("Calculated Non-Colinear Points.")
     return (P1, P2, P3)
 
+
+def getBlackImage():
+    return blackImg
+
+
 def planarFitting(randomPoints, points):
     # [Further hint: for this assignment this can be done in full projected floating-point 3D space (X,Y,Z) or in integer image space (x,y,disparity) – see provided hints python file]
     
