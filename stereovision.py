@@ -129,6 +129,8 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     images.append(("Result",imgL))
 
     resulto = f.batchImages(images, opt['img_size'])
+    # h, w = np.size(resulto, 0), np.size(resulto, 1)
+    # print( h,w)
 
     time_end = datetime.datetime.now()
     print("Time Taken:",time_end - time_start)

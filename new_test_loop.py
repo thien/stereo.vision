@@ -18,17 +18,6 @@ Task Specification – Road Surface Region Detection
 """
 """
     http://resources.mpi-inf.mpg.de/TemporalStereo/articleJpeg.pdf
-    Method:
-    - optimise disparity
-    - do a mask on the disparity
-    - do stereo to 3D
-    - delete coordinates of points that are blank
-    - planar fitting ransac
-    - create a plane accordingly
-    - create polygon of points near the plane
-    - map polygon of points on the plane
-        - convex hull
-    - show coefficents on the image
 """
 # imports, don't touch them lol
 import cv2
@@ -50,7 +39,7 @@ directory_to_cycle_right = "right-images";
 
 # set to timestamp to skip forward to, optional (empty for start)
 # e.g. set to 1506943191.487683 for the end of the Bailey, just as the vehicle turns
-skip_forward_file_pattern = "1506942892.477079_L";
+skip_forward_file_pattern = "";
 
 
 # ---------------------------------------------------------------------------
@@ -62,6 +51,8 @@ path_dir_r =  os.path.join(dataset_path, directory_to_cycle_right);
 # get a list of the left image files and sort them (by timestamp in filename)
 filelist_l = sorted(os.listdir(path_dir_l));
 
+fourcc =  cv2.VideoWriter_fourcc(*'MJPG')  # cv2.VideoWriter_fourcc() does not exist
+video_writer = cv2.VideoWriter("output.avi", fourcc, 8, (1024, 272))
 
 previousDisparity = None
 for filename_l in filelist_l:
@@ -83,11 +74,13 @@ for filename_l in filelist_l:
         imgL, imgR = imageStores
 
         image, previousDisparity = sv.performStereoVision(imgL, imgR, previousDisparity)
-
+        video_writer.write(image)
         # ● Your program must compile and work with OpenCV 3.3 on the lab PCs.
 
     else:
         print("-- files skipped (perhaps one is missing or not PNG)");
+
+video_writer.release()
 
 # close all windows
 cv2.destroyAllWindows()
