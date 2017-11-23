@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 # import csv
 import functions as f
+import datetime
 
 default_options = {
     'crop_disparity' : False,
@@ -34,10 +35,22 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # mask the disparity s.t we have a reccomended filter range.
     maskedDisparity = f.maskDisparity(disparity)
 
-    # project to a 3D colour point cloud (with or without colour)
-    points = f.projectDisparityTo3d(disparity, opt['max_disparity'],imgL)
+    # cap the disparity since we know we don't really need most of the information there.
+    cappedDisparity = f.capDisparity(disparity)
 
+    time_start = datetime.datetime.now()
+    f.projectDisparityMultiProcessing(disparity,opt['max_disparity'], imgL)
+    f.projectDisparityMultiProcessing(maskedDisparity,opt['max_disparity'])
+    time_end = datetime.datetime.now()
+    print(time_end - time_start)
+    # project to a 3D colour point cloud (with or without colour)
+
+    time_start = datetime.datetime.now()
+    print("projecting disparity to 3D..")
+    points = f.projectDisparityTo3d(disparity, opt['max_disparity'], imgL)
     maskpoints = f.projectDisparityTo3d(maskedDisparity, opt['max_disparity'])
+    time_end = datetime.datetime.now()
+    print(time_end - time_start)
 
     # assign reference image
     referenceImage = imgL
@@ -106,9 +119,26 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
 
     try:
         # generate convex hull 
+        print("Generating Convex Hull..")
         hull = cv2.convexHull(ptz)
+
         # draw hull on image L.
         cv2.drawContours(imgL,[hull],0,(0,0,255),5)
+
+        print("Generating Normal Arrow..")
+        # get center point of the area.
+        (x,y),_ = cv2.minEnclosingCircle(hull)
+        center = (int(x),int(y))
+        print("Center point:", center)
+        
+        newLine = f.getNormalVectorLine(center, normal, disparity)
+        lineThickness = 2
+        normalLineColor = (20,185,255)
+        cv2.line(imgL, center, newLine, normalLineColor, lineThickness)
+        circleHeadColour = (normalLineColor[0]+10, normalLineColor[1]+10, normalLineColor[2]+10)
+        cv2.circle(imgL, newLine, 2, circleHeadColour, thickness=10, lineType=8, shift=0)
+
+    
     except Exception as e:
         print("There was an error with generating a hull:", e)
 
