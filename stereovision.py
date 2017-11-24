@@ -20,8 +20,6 @@ default_options = {
 }
 
 def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
-    # initiate start time.
-    time_start = datetime.datetime.now()
     # initiate images list.
     images = []
 
@@ -84,16 +82,15 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # 5. PLANE FINDING VIA RANSAC
     # ------------------------------
     planePoints = []
+    normal = None
     try:
         # compute ransac which will give us the coefficents for our plane.
         normal, abc = f.RANSAC(maskpoints, opt['ransac_trials'])
-        # print normal string.
-        f.printNormalString(normal)
 
         # we calculate the error distances between the points on the disparity and the plane.
         pointDifferences = f.calculatePointErrors(abc, points)
 
-        # compute good points from the plane; using a threshold for a point limit.
+        # compute good points from the plane - using a threshold for a point limit.
         points = f.computePlanarThreshold(points,pointDifferences,opt['point_threshold'])
 
         # sanitise the points by colour.
@@ -167,15 +164,10 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
 
     img_tile = f.batchImages(images, opt['img_size'])
 
-    # compute time taken (so I don't lose my mind)
-    time_end = datetime.datetime.now()
-    print("Time Taken:",time_end - time_start)
-    print("--------")
-
     if opt['loop'] == True:
         # display image results.
         cv2.imshow('Result',img_tile)
         f.handleKey(cv2, opt['pause_playback'], disparity, imgL, imgR, opt['crop_disparity'])
     
     # return the results.
-    return img_tile, previousDisparity
+    return img_tile, previousDisparity, normal

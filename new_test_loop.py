@@ -4,7 +4,7 @@ Task Specification – Road Surface Region Detection
     You are required develop to road surface detection system that correctly detects the 3D planar orientation and bounds (i.e. edges) of any free (unoccupied) road surface region immediately in- front of the vehicle in which the autonomous vehicle needs to operate (e.g. for staying in the correct lane / staying on the road itself / avoiding obstacles / automatic braking).
 
     In constructing your solution you may wish to consider the following aspects of your design:
-    • exploring the optimization of the provided stereo vision algorithm in use and its operation and hows its performance under varying illumination conditions could perhaps be improved using the HSV or other colour spaces covered in CS SM L2 - Image Processing (these paper also presents an interesting research approach [1,2], others solutions exist also for illumination invariant colour spaces; use these as a starting point for your search).
+    • exploring the optimization of the provided stereo vision algorithm in use and its operation and hows its performance under varying illumination conditions could perhaps be improved using the HSV or other colour spaces covered in CS SM L2 - Image Processing (these paper also presents an interesting research approach [1,2], others solutions exist also for illumination invariant colour spaces - use these as a starting point for your search).
 
     • selection of a region of interest, possibly adaptively, within the image (including possibly areas of road, pavement, other or not) that represents the region directly in-front of the vehicle and how to deal with the problem of missing disparity (depth) values in that region.
 
@@ -22,15 +22,15 @@ Task Specification – Road Surface Region Detection
 
 
 # obvious variable name for the dataset directory
-dataset_path = "TTBB-durham-02-10-17-sub10";
+dataset_path = "TTBB-durham-02-10-17-sub10"
 
 # optional edits (if needed)
-directory_to_cycle_left = "left-images";
-directory_to_cycle_right = "right-images";
+directory_to_cycle_left = "left-images"
+directory_to_cycle_right = "right-images"
 
 # set to timestamp to skip forward to, optional (empty for start)
 # e.g. set to 1506943191.487683 for the end of the Bailey, just as the vehicle turns
-skip_forward_file_pattern = "";
+skip_forward_file_pattern = ""
 
 
 options = {
@@ -61,11 +61,11 @@ import stereovision as sv
 
 
 # resolve full directory location of data set for left / right images
-path_dir_l =  os.path.join(dataset_path, directory_to_cycle_left);
-path_dir_r =  os.path.join(dataset_path, directory_to_cycle_right);
+path_dir_l =  os.path.join(dataset_path, directory_to_cycle_left)
+path_dir_r =  os.path.join(dataset_path, directory_to_cycle_right)
 
 # get a list of the left image files and sort them (by timestamp in filename)
-filelist_l = sorted(os.listdir(path_dir_l));
+filelist_l = sorted(os.listdir(path_dir_l))
 
 
 if options['record_video']:
@@ -85,23 +85,27 @@ for filename_l in filelist_l:
 
     # skip forward to start a file we specify by timestamp (if this is set)
     if ((len(skip_forward_file_pattern) > 0) and not(skip_forward_file_pattern in filename_l)):
-        continue;
+        continue
     elif ((len(skip_forward_file_pattern) > 0) and (skip_forward_file_pattern in filename_l)):
-        skip_forward_file_pattern = "";
+        skip_forward_file_pattern = ""
 
-    # # from the left image filename get the corresponding right image
-    imageStores = f.loadImages(filename_l, path_dir_l, path_dir_r)
-    if imageStores != False:
-        imgL, imgR = imageStores
+    # get image paths
+    imgPaths = f.getImagePaths(filename_l, path_dir_l, path_dir_r)
+    if imgPaths != False:
+        imgL, imgR = f.loadImages(imgPaths)
 
-        image, previousDisparity = sv.performStereoVision(imgL, imgR, previousDisparity, options)
+        image, previousDisparity, normal = sv.performStereoVision(imgL, imgR, previousDisparity, options)
 
         if options['record_video']:
             video_writer.write(image)
         # ● Your program must compile and work with OpenCV 3.3 on the lab PCs.
 
+        filename_r = filename_l.replace("_L", "_R")
+        print(filename_l);
+        print(filename_r + " - Normal:" + f.NormalString(normal));
+
     else:
-        print("-- files skipped (perhaps one is missing or not PNG)");
+        print("-- files skipped (perhaps one is missing or not PNG)")
 
 if options['record_video']:
     print("Video saved to:", options['video_filename'])

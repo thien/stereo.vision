@@ -9,6 +9,6 @@
 - set up video recording
     done.
 
-
+- print normal properly
 - filter by HSV.
 - will need to detect objects that obstruct the plane.

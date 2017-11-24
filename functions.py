@@ -36,7 +36,7 @@ carmask = cv2.bitwise_and(car_front_mask,car_front_mask,mask = view_range)
 # -------------------------------------------------------------------
 
 
-def loadImages(filename_l, path_dir_l, path_dir_r):
+def getImagePaths(filename_l, path_dir_l, path_dir_r):
     """
     Here we'll cycle through the files, and finding each stereo pair.
     We'll then process them to detect the road surface planes, and compute 
@@ -51,16 +51,19 @@ def loadImages(filename_l, path_dir_l, path_dir_r):
         # read left and right images and display in windows
         # N.B. despite one being grayscale both are in fact stored as 3-channel
         # RGB images so load both as such
-        imgL = cv2.imread(full_path_filename_l)
-        imgR = cv2.imread(full_path_filename_r)
 
-        # for sanity print out these filenames
-        print(full_path_filename_l);
-        print(full_path_filename_r);
-
-        return (imgL, imgR)
+        return (full_path_filename_l, full_path_filename_r)
     else:
         return False
+
+def loadImages(image_paths):
+    filename_l, filename_r = image_paths
+    # RGB images so load both as such
+    imgL = cv2.imread(filename_l)
+    imgR = cv2.imread(filename_r)
+
+    return (imgL, imgR)
+
 
 # -------------------------------------------------------------------
 
@@ -334,8 +337,9 @@ def projectDisparityMultiProcessing(disparity, max_disparity, rgb=[]):
     return pool_outputs
 
 
-def printNormalString(normal):
-    print("Normal:", str(round(normal[0][0],4))+"x +", str(round(normal[1][0],4))+"y +", str(round(normal[2],4)) + "z")
+def NormalString(normal):
+    normalString = "("+str(round(normal[0][0],4))+", " + str(round(normal[1][0],4))+", " + str(round(normal[2],4))+")"
+    return normalString
 
 def drawContours(image, points):
     # generate convex hull
