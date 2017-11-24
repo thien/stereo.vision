@@ -5,6 +5,7 @@ import numpy as np
 import functions as f
 import datetime
 import sys
+import traceback
 
 # (adjust parameters if needed - this will effect speed to processing)
 default_opts = {
