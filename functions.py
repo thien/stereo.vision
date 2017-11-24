@@ -772,12 +772,6 @@ def batchImages(imgList, size):
         images.append(fixedScaleImg)
         
 
-
-    # numpy_vertical = np.vstack((image, grey_3_channel))
-    # numpy_horizontal = np.hstack((image, grey_3_channel))
-
-    # numpy_vertical_concat = np.concatenate((image, grey_3_channel), axis=0)
-    # numpy_horizontal_concat = np.concatenate((image, grey_3_channel), axis=1)
     if counts == 1:
         return images[0]
     if counts == 2:
@@ -810,47 +804,3 @@ def batchImages(imgList, size):
         pass
 
 
-
-# def batchViewImages(images):
-
-#     return False
-
-# def batchViewImages(images):
-#     f, axarr = plt.subplots(2,2)
-#     axarr[0,1].imshow(imgR2)
-#     axarr[0,0].imshow(imgL2)
-#     axarr[1,0].imshow(disparity_scaled2)
-#     plt.show()
-
-# def batchViewImages(images):
-#     # translated from C code here:
-#     # https://github.com/opencv/opencv/wiki/DisplayManyImages
-#     size = 0
-#     i = 0
-#     x = 0
-#     y = 0
-#     if len(images) == 1:
-#         w = h = 1
-#         size = 300
-#     elif len(images) == 2:
-#         w = 2
-#         h = 1
-#         size = 300
-#     elif len(images) == 3 or len(images) == 4:
-#         w = h = 2
-#         size = 300
-#     elif len(images) == 5 or len(images) == 6:
-#         w = 3
-#         h = 2
-#         size = 200
-#     else:
-#         w = 4
-#         h = 3
-#         size = 150
-    
-#     dimension = (w, h, channels) = ((100 + size * w), (60+size*h), 3)
-#     img = np.zeros(dimension, np.int8)
-
-#     m = 0
-#     n = 0
-#     for i in range(len(images)):
