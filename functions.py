@@ -1,3 +1,4 @@
+# library imports
 import cv2
 import math
 import numpy as np
@@ -5,8 +6,6 @@ import random
 import os
 import colorsys
 import csv
-from multiprocessing import Pool
-
 
 # focal length in pixels
 camera_focal_length_px = 399.9745178222656
@@ -14,28 +13,33 @@ camera_focal_length_px = 399.9745178222656
 camera_focal_length_m = 4.8 / 1000
 # camera baseline in metres    
 stereo_camera_baseline_m = 0.2090607502
-
+# image center point and widths
 image_centre_h = 262.0;
 image_centre_w = 474.5;
-
+# maximum disparity
 max_disparity = 128;
+# initial load of stereo processor
 stereoProcessor = cv2.StereoSGBM_create(0, max_disparity, 21);
     
-# Here we load pre-requisite masks. This way, they're preloaded
-# and ready for when they are needed on an image.
+# load pre-requisite masks s.t they're ready for when they are needed on an image.
 disparity_range = cv2.imread("masks/disparity_cap.png", cv2.IMREAD_GRAYSCALE)
 road_threshold_mask = cv2.imread("masks/road_threshold_mask.png", cv2.IMREAD_GRAYSCALE)
 car_front_mask = cv2.imread("masks/car_front_mask.png", cv2.IMREAD_GRAYSCALE);
 blackImg = cv2.imread("masks/black.png", cv2.IMREAD_GRAYSCALE);
 view_range = cv2.imread("masks/view_range.png", cv2.IMREAD_GRAYSCALE);
 plane_sample = cv2.imread("masks/plane_sample.png", cv2.IMREAD_GRAYSCALE);
-carmask = cv2.bitwise_and(car_front_mask,car_front_mask,mask = view_range)
+carmask = cv2.bitwise_and(car_front_mask, car_front_mask, mask=view_range)
 
 # https://stackoverflow.com/questions/24814941/concave-hull-with-missing-edges
 # https://github.com/pmneila/morphsnakes
+# http://pathfinder.engin.umich.edu/documents/Feng&Taguchi&Kamat.ICRA.2014.pdf
+# http://web.ipac.caltech.edu/staff/fmasci/home/astro_refs/HoughTrans_lines_09.pdf
+# https://stackoverflow.com/questions/18255958/harris-corner-detection-and-localization-in-opencv-with-python
+# https://stackoverflow.com/questions/32609098/how-to-fast-change-image-brightness-with-python-opencv
 
 # -------------------------------------------------------------------
-
+# IMAGE LOADING FUNCTIONS
+# -------------------------------------------------------------------
 
 def getImagePaths(filename_l, path_dir_l, path_dir_r):
     """
@@ -65,8 +69,11 @@ def loadImages(image_paths):
 
     return (imgL, imgR)
 
-
 # -------------------------------------------------------------------
+# IMAGE COLOUR MANIPULATION FUNCTIONS
+# -------------------------------------------------------------------
+
+# the successful use of any heuristics to speed up processing times or reduce false detections (including at the stage of colour pre-filtering)
 
 def gammaChange(image, gamma=1.0):
     # build a lookup table mapping the pixel values [0, 255] to
@@ -78,12 +85,9 @@ def gammaChange(image, gamma=1.0):
     # apply gamma correction using the lookup table
     return cv2.LUT(image, table)
 
-# -------------------------------------------------------------------
-
 def BGRtoHSV(r,g,b):
     # Converts RGB to HSV.
     return colorsys.rgb_to_hsv(r,g,b)
-# -------------------------------------------------------------------
 
 def preProcessImages(imgL,imgR):
 
@@ -125,12 +129,13 @@ def greyscale(imgL,imgR):
     imgL, imgR = images[0],images[1]
     return (imgL, imgR)
 
+def RGBToGreyscale(r,g,b):
+    # we use some modified YLinear weights sourced from (https://en.wikipedia.org/wiki/Grayscale)
+    return int(0.06*r + 0.75*g + 0.19*b)
+
 # -------------------------------------------------------------------
-
-
-def calculateHistogram(img):
-    hist = cv2.calcHist([img],[0],None,[256],[0,256])
-    return hist
+# DISPARITY GENERATION FUNCTIONS
+# -------------------------------------------------------------------
 
 # compute disparity image from undistorted and rectified stereo images that we have loaded
 # (which for reasons best known to the OpenCV developers is returned scaled by 16)
@@ -169,19 +174,6 @@ def disparity(grayL, grayR, max_disparity, crop_disparity):
     disparity_scaled = (disparity_scaled * (256. / max_disparity)).astype(np.uint8)
     return disparity_scaled
 
-# -------------------------------------------------------------------
-
-def capDisparity(disparity):
-    cv2.bitwise_and(disparity,disparity,mask = disparity_range)
-    return disparity
-
-def maskDisparity(disparity):
-    #     # Take only region
-    #     filling = cv2.bitwise_and(previousDisparity,previousDisparity,mask = carmask)
-    #     disparity = cv2.add(disparity,filling)
-    disparity = cv2.bitwise_and(disparity,disparity,mask = carmask)
-    return disparity
-
 def fillDisparity(disparity, previousDisparity):
     if previousDisparity is not None:
         ret, mask = cv2.threshold(disparity, 2, 255, cv2.THRESH_BINARY)
@@ -212,25 +204,23 @@ def fillAltDisparity(disparity):
                 disparity[i][j] = averagePoints[i]
     return disparity
 
+def capDisparity(disparity):
+    cv2.bitwise_and(disparity,disparity,mask = disparity_range)
+    return disparity
+
+def maskDisparity(disparity):
+    #     # Take only region
+    #     filling = cv2.bitwise_and(previousDisparity,previousDisparity,mask = carmask)
+    #     disparity = cv2.add(disparity,filling)
+    disparity = cv2.bitwise_and(disparity,disparity,mask = carmask)
+    return disparity
+
 def baseMaskDisp(disparity):
     disparity = cv2.bitwise_and(disparity,disparity,mask = plane_sample)
     return disparity
+
 # -------------------------------------------------------------------
-
-
-def generateCenterPoint(points):
-    # find middle most point in x
-    # find middle most point in y
-    return False
-
-def performCanny(image):
-    # image = cv2.GaussianBlur(image,(5,5),0)
-    image = cv2.Canny(image,110,200)
-    image = removeSmallParticles(image)
-    image = cv2.bitwise_and(image,image,mask = car_front_mask)
-    return image
-	# image = cv2.bitwise_and(check_blurred, check_blurred, mask=mask_base)
-
+# 3D CALCULATIONS
 # -------------------------------------------------------------------
 
 def disparity3DCalculation(x,y,disparity,f,B, rgb=[]):
@@ -248,8 +238,7 @@ def disparity3DCalculation(x,y,disparity,f,B, rgb=[]):
         else:
             return [X,Y,Z]
 
-
-def projectDisparityTo3d(disparity, max_disparity, rgb=[], heightRange=False):
+def projectDisparityTo3d(disparity, max_disparity, rgb=[]):
     # list of points
     points = [];
     f = camera_focal_length_px;
@@ -259,130 +248,41 @@ def projectDisparityTo3d(disparity, max_disparity, rgb=[], heightRange=False):
     # and then get reasonable scaling in X and Y output
     # Zmax = ((f * B) / 2);
 
-    if heightRange != False:
-        mi, ma = heightRange
-        for y in range(mi, ma): # 0 - height is the y axis index
-            for x in range(width): # 0 - width is the x axis index
-                # if we have a valid non-zero disparity
-                # points.append(disparity3DCalculation(x,y,disparity,f,B, rgb))
-                if (disparity[y,x] > 0):
-                    # calculate corresponding 3D point [X, Y, Z]
-                    # stereo lecture - slide 22 + 25
-                    Z = (f * B) / disparity[y,x];
-                    X = ((x - image_centre_w) * Z) / f;
-                    Y = ((y - image_centre_h) * Z) / f;
-                    # print(x,y,z)
-                    # add to points
+    for y in range(0,height-1, 2): # 0 - height is the y axis index
+        for x in range(0,width-1, 2): # 0 - width is the x axis index
+            # if we have a valid non-zero disparity
+            # points.append(disparity3DCalculation(x,y,disparity,f,B, rgb))
+            if (disparity[y,x] > 0):
+                # calculate corresponding 3D point [X, Y, Z]
+                # stereo lecture - slide 22 + 25
+                Z = (f * B) / disparity[y,x];
+                X = ((x - image_centre_w) * Z) / f;
+                Y = ((y - image_centre_h) * Z) / f;
+                # print(x,y,z)
+                # add to points
 
-                    if(len(rgb) > 0):
-                        points.append([X,Y,Z,rgb[y,x,2], rgb[y,x,1],rgb[y,x,0]]);
-                    else:
-                        points.append([X,Y,Z]);
-    else:
-        for y in range(0,height-1, 2): # 0 - height is the y axis index
-            for x in range(0,width-1, 2): # 0 - width is the x axis index
-                # if we have a valid non-zero disparity
-                # points.append(disparity3DCalculation(x,y,disparity,f,B, rgb))
-                if (disparity[y,x] > 0):
-                    # calculate corresponding 3D point [X, Y, Z]
-                    # stereo lecture - slide 22 + 25
-                    Z = (f * B) / disparity[y,x];
-                    X = ((x - image_centre_w) * Z) / f;
-                    Y = ((y - image_centre_h) * Z) / f;
-                    # print(x,y,z)
-                    # add to points
-
-                    if(len(rgb) > 0):
-                        points.append([X,Y,Z,rgb[y,x,2], rgb[y,x,1],rgb[y,x,0]]);
-                    else:
-                        points.append([X,Y,Z]);
+                if(len(rgb) > 0):
+                    points.append([X,Y,Z,rgb[y,x,2], rgb[y,x,1],rgb[y,x,0]]);
+                else:
+                    points.append([X,Y,Z]);
     return points;
 
-def process_list(contents):
-    # print("WE ARE PROCESSING")
-    if len(contents) > 3:
-        disparity, max_disparity, height_range, rgb = contents[0], contents[1], contents[2], contents[3]
-        results = projectDisparityTo3d(disparity, max_disparity, rgb, height_range)
-    else:
-        disparity, max_disparity, height_range = contents[0], contents[1], contents[2]
-        results = projectDisparityTo3d(disparity, max_disparity, heightRange=height_range)
-    # print("we is done")
-    return results
+# project a set of 3D points back the 2D image domain
+def project3DPointsTo2DImagePoints(points):
+    points2 = [];
+    # calc. Zmax as per above
+    # Z = (camera_focal_length_px * stereo_camera_baseline_m) / 2;
+    for i1 in range(len(points)):
+        # reverse earlier projection for X and Y to get x and y again
+        Z = points[i1][2]
+        x = ((points[i1][0] * camera_focal_length_px) / Z) + image_centre_w;
+        y = ((points[i1][1] * camera_focal_length_px) / Z) + image_centre_h;
+        points2.append([x,y]);
+    return points2;
 
-
-def projectDisparityMultiProcessing(disparity, max_disparity, rgb=[]):
-    # make sure we have one available.
-    cpuCount = os.cpu_count()*2
-    cpu_pool = Pool(cpuCount) 
-
-    print("init split")
-    # split heights so we can parallelise them.
-    height, _ = disparity.shape[:2]
-    inc = int(height / cpuCount)
-    caps = []
-    head, tail = 0, 0
-    while tail < height-1:
-        if tail + inc > height-1:
-            tail = height - 1
-        else:
-            tail += inc
-        height_range = (head, tail)
-        if len(rgb) > 0:
-            caps.append((disparity, max_disparity, height_range, rgb))
-        else:
-            caps.append((disparity, max_disparity, height_range))
-        head = tail+1
-
-    print("doing multiprocessing..")
-    pool_outputs = cpu_pool.map(process_list, caps)
-    print("closing taks")
-    cpu_pool.close() # no more tasks
-    print("wrap tasks")
-    cpu_pool.join()  # wrap up current tasks
-    print("done multiprocessing")
-    return pool_outputs
-
-
-def NormalString(normal):
-    normalString = "("+str(round(normal[0][0],4))+", " + str(round(normal[1][0],4))+", " + str(round(normal[2],4))+")"
-    return normalString
-
-def drawContours(image, points):
-    # generate convex hull
-    hull = cv2.convexHull(points)
-    # draw hull on image
-    return (cv2.drawContours(image,[hull],0,(0,0,255),5), hull)
-
-def getNormalVectorLine(basePoint, abc, disparity):
-    f = camera_focal_length_px;
-    B = stereo_camera_baseline_m;
-    # basepoint is x,y
-    x,y = basePoint
-
-    Z = (f * B) / disparity[y,x];
-    X = ((x - image_centre_w) * Z) / f;
-    Y = ((y - image_centre_h) * Z) / f;
-
-    newY = Y - 0.505
-    newX = X + 0.205
-    newZ = False
-
-    d = math.sqrt(abc[0]*abc[0]+abc[1]*abc[1]+abc[2]*abc[2])
-    Z = d - ((abc[0] * newX) + (abc[1]*newY))
-
-    newX = ((newX * camera_focal_length_px) / Z) + image_centre_w;
-    newY = ((newY * camera_focal_length_px) / Z) + image_centre_h;
-
-    results = (int(newX), int(newY[0]))
-    return results
-
-
-def RGBToGreyscale(r,g,b):
-    # we use some modified YLinear weights sourced from (https://en.wikipedia.org/wiki/Grayscale)
-    return int(0.06*r + 0.75*g + 0.19*b)
-
-def getPointColour(point):
-    return (point[3], point[4], point[5])
+# -------------------------------------------------------------------
+# HISTOGRAM FUNCTIONS
+# -------------------------------------------------------------------
 
 def calculateColourHistogram(points):
     # get colour points for each point in plane.
@@ -399,67 +299,16 @@ def calculateColourHistogram(points):
     return histogram
 
 def filterPointsByHistogram(points, histogram, threshold=100):
-    # sort keys by histogram rank
-    # sortedColours = sorted(histogram, key=histogram.__getitem__)
-    # for colour in sortedColours:
-    #     print( colour, 'corresponds to', histogram[colour])
+    # pythonic expression for filtering points by histogram
+    return [x for x in points if histogram[getPointColour(x)] > threshold]
 
-    # pythonic expression for filtering 
-    points = [x for x in points if histogram[getPointColour(x)] > threshold]
-
-    return points
-
+def calculateHistogram(img):
+    hist = cv2.calcHist([img],[0],None,[256],[0,256])
+    return hist
 
 # -------------------------------------------------------------------
-
-# project a set of 3D points back the 2D image domain
-def project3DPointsTo2DImagePoints(points):
-    points2 = [];
-    # calc. Zmax as per above
-    # Z = (camera_focal_length_px * stereo_camera_baseline_m) / 2;
-    for i1 in range(len(points)):
-        # reverse earlier projection for X and Y to get x and y again
-        Z = points[i1][2]
-        x = ((points[i1][0] * camera_focal_length_px) / Z) + image_centre_w;
-        y = ((points[i1][1] * camera_focal_length_px) / Z) + image_centre_h;
-        points2.append([x,y]);
-    return points2;
-
+# RANSAC
 # -------------------------------------------------------------------
-
-def printVectorPlane(plane=[]):
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
-
-    point  = np.array([1, 2, 3])
-    normal = np.array([1, 1, 2])
-
-    # a plane is a*x+b*y+c*z+d=0
-    # [a,b,c] is the normal. Thus, we have to calculate
-    # d and we're set
-    d = -point.dot(normal)
-
-    # create x,y
-    xx, yy = np.meshgrid(range(10), range(10))
-
-    # calculate corresponding z
-    z = (-normal[0] * xx - normal[1] * yy - d) * 1. /normal[2]
-
-    # plot the surface
-    plt3d = plt.figure().gca(projection='3d')
-    plt3d.plot_surface(xx, yy, z)
-    plt.show()
-
-
-# ● For the purposes of this assignment when a road has either curved road edges or other complexities due to the road configuration (e.g. junctions, roundabouts, road type, occlusions) report and display the road boundaries as far as possible using a polygon or an alternative pixel-wise boundary.
-
-# You may use any heuristics you wish to aid/filter/adjust your approach but RANSAC must be central to the detection you perform.
-
-# http://pathfinder.engin.umich.edu/documents/Feng&Taguchi&Kamat.ICRA.2014.pdf
-# http://web.ipac.caltech.edu/staff/fmasci/home/astro_refs/HoughTrans_lines_09.pdf
-# https://stackoverflow.com/questions/18255958/harris-corner-detection-and-localization-in-opencv-with-python
-# https://stackoverflow.com/questions/32609098/how-to-fast-change-image-brightness-with-python-opencv
-
 
 def randomNonCollinearPoints(points):
     # print("Calculating Non CollinearPoints")
@@ -490,11 +339,6 @@ def randomNonCollinearPoints(points):
     # print("Calculated Non-Colinear Points.")
     return (P1, P2, P3)
 
-
-def getBlackImage():
-    return blackImg
-
-
 def planarFitting(randomPoints, points):
     # [Further hint: for this assignment this can be done in full projected floating-point 3D space (X,Y,Z) or in integer image space (x,y,disparity) – see provided hints python file]
     
@@ -524,12 +368,60 @@ def planarFitting(randomPoints, points):
 
     return abc, normal, dist
 
+def RANSAC(points, trials):
+    # Your solution must use a RANdom SAmple and Consensus (RANSAC) approach to perform the detection of the 3D plane in front of the vehicle (when and where possible).
+    bestPlane = (None, None)
+    bestError = float("inf")
+    
+    for i in range(trials):
+        # select T data points randomly
+        T = random.sample(points, 600)
+        # estimate the plane using this subset of information
+        coefficents, normal, dist = planarFitting(T, points)
+        error = np.mean(dist)
+        
+        # store the results in our dictionary.
+        if error < bestError:
+            bestPlane = (normal,coefficents)
+            bestError = error
+            # print("New Best Error:", error)
+    return bestPlane
 
-def getCenterPoint(points):
-    (x,y),_ = cv2.minEnclosingCircle(points)
-    return (int(x),int(y))
+def calculatePointErrors(abc, points):
+    the_list = []
+    for i in points:
+        p = [i[0],i[1],i[2]]
+        # print(p)
+        the_list.append(p)
+    points = np.array(the_list)
 
-# removes artifacts.
+    # calculate coefficents d
+    d = math.sqrt(abc[0]*abc[0]+abc[1]*abc[1]+abc[2]*abc[2])
+
+    # measure distance of all points from plane given 
+    # the plane coefficients calculated
+    dist = abs((np.dot(points, abc) - 1)/d)
+
+    return dist
+
+def computePlanarThreshold(points,differences,threshold=0.01):
+    """
+        Discards points on the disparity where it is not within the plane.
+    """
+    new_points = []
+    for i in range(len(points)):
+        # we only keep points that are within the threshold.
+        if differences[i] < threshold:
+            new_points.append(points[i])
+        # else:
+        #     print("Doesn't meet threshold:", differences[i])
+    return new_points
+
+# -------------------------------------------------------------------
+# POST RANSAC POINT COLOURING & FILTERING
+# automatically adjusting the parameters initial region of interest extraction or image prefiltering based on some form of preliminary analysis image
+# -------------------------------------------------------------------
+
 def removeSmallParticles(image, threshold=20):
     _, contours, _= cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     for spectacle in contours:
@@ -578,94 +470,6 @@ def sanitiseRoadImage(img, size):
                 pts.append(k)
     pts = np.matrix(pts)
     return img, pts
-# -------------------------------------------------------------------
-
-def RANSAC(points, trials):
-    # Your solution must use a RANdom SAmple and Consensus (RANSAC) approach to perform the detection of the 3D plane in front of the vehicle (when and where possible).
-    bestPlane = (None, None)
-    bestError = float("inf")
-    
-    for i in range(trials):
-        # select T data points randomly
-        T = random.sample(points, 600)
-        # estimate the plane using this subset of information
-        coefficents, normal, dist = planarFitting(T, points)
-        error = np.mean(dist)
-        
-        # store the results in our dictionary.
-        if error < bestError:
-            bestPlane = (normal,coefficents)
-            bestError = error
-            # print("New Best Error:", error)
-    return bestPlane
-
-# -------------------------------------------------------------------
-
-def calculatePointErrors(abc, points):
-    the_list = []
-    for i in points:
-        p = [i[0],i[1],i[2]]
-        # print(p)
-        the_list.append(p)
-    points = np.array(the_list)
-
-    # calculate coefficents d
-    d = math.sqrt(abc[0]*abc[0]+abc[1]*abc[1]+abc[2]*abc[2])
-
-    # measure distance of all points from plane given 
-    # the plane coefficients calculated
-    dist = abs((np.dot(points, abc) - 1)/d)
-
-    return dist
-
-def computePlanarThreshold(points,differences,threshold=0.01):
-    """
-        Discards points on the disparity where it is not within the plane.
-    """
-    new_points = []
-    for i in range(len(points)):
-        # we only keep points that are within the threshold.
-        if differences[i] < threshold:
-            new_points.append(points[i])
-        # else:
-        #     print("Doesn't meet threshold:", differences[i])
-    return new_points
-
-# -------------------------------------------------------------------
-
-# write to file in an X simple ASCII X Y Z format that can be viewed in 3D
-# using the on-line viewer at http://lidarview.com/
-# (by uploading, selecting X Y Z format, press render , rotating the view)
-def saveCoords(points, file_location):
-    # point_cloud_file = open('3d_points.txt', 'w');
-    point_cloud_file = open(file_location, 'w');
-    csv_writer = csv.writer(point_cloud_file, delimiter=' ');
-    csv_writer.writerows(points);
-    point_cloud_file.close();
-
-# -------------------------------------------------------------------
-
-def handleKey(cv2, pause_playback, disparity_scaled, imgL, imgR, crop_disparity):
-    # keyboard input for exit (as standard), save disparity and cropping
-        # exit - x
-        # save - s
-        # crop - c
-        # pause - space
-
-    # wait 40ms (i.e. 1000ms / 25 fps = 40 ms)
-    key = cv2.waitKey(2 * (not(pause_playback))) & 0xFF;
-    if (key == ord('s')):     # save
-        cv2.imwrite("sgbm-disparty.png", disparity_scaled);
-        cv2.imwrite("left.png", imgL);
-        cv2.imwrite("right.png", imgR);
-    elif (key == ord('c')):     # crop
-        crop_disparity = not(crop_disparity);
-    elif (key == ord(' ')):     # pause (on next frame)
-        pause_playback = not(pause_playback);
-    elif (key == ord('x')):       # exit
-        raise ValueError("exiting manually")
-
-# -------------------------------------------------------------------
 
 def generatePlaneShape(points, copy):
     img = cv2.cvtColor(copy,cv2.COLOR_BGR2GRAY)
@@ -693,6 +497,51 @@ def ParticleCleansing(image):
 	return image
 
 # -------------------------------------------------------------------
+# CONTOURS AND NORMAL LINES
+# -------------------------------------------------------------------
+
+def drawContours(image, points):
+    # generate convex hull
+    hull = cv2.convexHull(points)
+    # draw hull on image
+    return (cv2.drawContours(image,[hull],0,(0,0,255),5), hull)
+
+def getNormalVectorLine(basePoint, abc, disparity):
+    f = camera_focal_length_px;
+    B = stereo_camera_baseline_m;
+    # basepoint is x,y
+    x,y = basePoint
+
+    Z = (f * B) / disparity[y,x];
+    X = ((x - image_centre_w) * Z) / f;
+    Y = ((y - image_centre_h) * Z) / f;
+
+    newY = Y - 0.505
+    newX = X + 0.205
+    newZ = False
+
+    d = math.sqrt(abc[0]*abc[0]+abc[1]*abc[1]+abc[2]*abc[2])
+    Z = d - ((abc[0] * newX) + (abc[1]*newY))
+
+    newX = ((newX * camera_focal_length_px) / Z) + image_centre_w;
+    newY = ((newY * camera_focal_length_px) / Z) + image_centre_h;
+
+    results = (int(newX), int(newY[0]))
+    return results
+
+def getCenterPoint(points):
+    (x,y),_ = cv2.minEnclosingCircle(points)
+    return (int(x),int(y))
+
+# plotting of the planar normal direction direction glyph / vector in the image
+def drawNormalLine(baseImage, center, normal, disparity):
+    newLine = getNormalVectorLine(center, normal, disparity)
+    lineThickness = 2
+    normalLineColor = (20,185,255)
+    cv2.line(baseImage, center, newLine, normalLineColor, lineThickness)
+    circleHeadColour = (normalLineColor[0]+10, normalLineColor[1]+10, normalLineColor[2]+10)
+    cv2.circle(baseImage, newLine, 2, circleHeadColour, thickness=10, lineType=8, shift=0)
+    return baseImage
 
 def getPtsAgain(plane_shape):
     pts = []
@@ -716,18 +565,6 @@ def drawConvexHull(pts, base, thickness=1, colour=(0,0,255)):
     cv2.drawContours(base,[hull],0,colour,thickness)
     return base
 
-# -------------------------------------------------------------------
-
-# plotting of the planar normal direction direction glyph / vector in the image
-def drawNormalGlyph(normal):
-    return False
-
-# automatically adjusting the parameters initial region of interest extraction or image prefiltering based on some form of preliminary analysis image
-def filterRegionByPopularColour(image):
-    return False
-
-# the successful use of any heuristics to speed up processing times or reduce false detections (including at the stage of colour pre-filtering)
-
 # automatically detecting and highlighting obstacles that rise above the road surface plane (vehicles, pedestrians, bollards etc.) as they appear directly in front of the vehicles
 def detectObjects(image):
     # https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_feature2d/py_features_harris/py_features_harris.html
@@ -744,18 +581,32 @@ def detectObjects(image):
 
     return image
 
+
+# -------------------------------------------------------------------
+# MISC
 # -------------------------------------------------------------------
 
+def performCanny(image):
+    # image = cv2.GaussianBlur(image,(5,5),0)
+    image = cv2.Canny(image,110,200)
+    image = removeSmallParticles(image)
+    image = cv2.bitwise_and(image,image,mask = car_front_mask)
+    return image
+	# image = cv2.bitwise_and(check_blurred, check_blurred, mask=mask_base)
 
+def getPointColour(point):
+    """
+    To be used on a rgb point cloud.
+    """
+    return (point[3], point[4], point[5])
 
-def drawNormalLine(baseImage, center, normal, disparity):
-    newLine = getNormalVectorLine(center, normal, disparity)
-    lineThickness = 2
-    normalLineColor = (20,185,255)
-    cv2.line(baseImage, center, newLine, normalLineColor, lineThickness)
-    circleHeadColour = (normalLineColor[0]+10, normalLineColor[1]+10, normalLineColor[2]+10)
-    cv2.circle(baseImage, newLine, 2, circleHeadColour, thickness=10, lineType=8, shift=0)
-    return baseImage
+def NormalString(normal):
+    normalString = "("+str(round(normal[0][0],4))+", " + str(round(normal[1][0],4))+", " + str(round(normal[2],4))+")"
+    return normalString
+
+def getBlackImage():
+    # returns a black image (the size of our reference image)
+    return blackImg
 
 def resizeImage(image, height, width):
     image = cv2.resize(image, (width, height))
@@ -809,4 +660,22 @@ def batchImages(imgList, size):
     else:
         pass
 
+def handleKey(cv2, pause_playback, disparity_scaled, imgL, imgR, crop_disparity):
+    # keyboard input for exit (as standard), save disparity and cropping
+        # exit - x
+        # save - s
+        # crop - c
+        # pause - space
 
+    # wait 40ms (i.e. 1000ms / 25 fps = 40 ms)
+    key = cv2.waitKey(2 * (not(pause_playback))) & 0xFF;
+    if (key == ord('s')):     # save
+        cv2.imwrite("sgbm-disparty.png", disparity_scaled);
+        cv2.imwrite("left.png", imgL);
+        cv2.imwrite("right.png", imgR);
+    elif (key == ord('c')):     # crop
+        crop_disparity = not(crop_disparity);
+    elif (key == ord(' ')):     # pause (on next frame)
+        pause_playback = not(pause_playback);
+    elif (key == ord('x')):       # exit
+        raise ValueError("exiting manually")
