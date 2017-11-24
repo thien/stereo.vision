@@ -334,6 +334,15 @@ def projectDisparityMultiProcessing(disparity, max_disparity, rgb=[]):
     return pool_outputs
 
 
+def printNormalString(normal):
+    print("Normal:", str(round(normal[0][0],4))+"x +", str(round(normal[1][0],4))+"y +", str(round(normal[2],4)) + "z")
+
+def drawContours(image, points):
+    # generate convex hull
+    hull = cv2.convexHull(points)
+    # draw hull on image
+    return (cv2.drawContours(image,[hull],0,(0,0,255),5), hull)
+
 def getNormalVectorLine(basePoint, abc, disparity):
     f = camera_focal_length_px;
     B = stereo_camera_baseline_m;

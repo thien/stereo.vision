@@ -13,40 +13,56 @@ default_options = {
     'max_disparity' : 64,
     'ransac_trials' : 600,
     'loop': True,
-    'point_threshold' : 0.03,
+    'point_threshold' : 0.04,
     'img_size' : (544,1024),
     'threshold_option' : 'previous',
     'video_filename' : 'previous.avi'
 }
 
 def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
+    # initiate start time.
     time_start = datetime.datetime.now()
+    # initiate images list.
     images = []
 
-    # assign reference image
-    referenceImage = imgL
-    # images.append(("Reference Image",referenceImage))
+    # ------------------------------
+    # 1. IMAGE PROCESSING
+    # ------------------------------
 
-    # perform preprocessing.
+    # perform preprocessing on images.
     imgL, imgR = f.preProcessImages(imgL,imgR)
     # make image greyscale
     grayL, grayR = f.greyscale(imgL,imgR)
 
+    # ------------------------------
+    # 2. DISPARITY PROCESSING
+    # ------------------------------
+
     # compute disparity image
-    disparity = f.disparity(grayL,grayR, opt['max_disparity'], opt['crop_disparity'])
+    disparity = None
+    try:
+        disparity = f.disparity(grayL,grayR, opt['max_disparity'], opt['crop_disparity'])
 
-    # compute disparity filling (for missing data)
-    if opt['threshold_option'] == 'previous':
-        # load previous disparity to fill in missing content.
-        if previousDisparity is not None:
-            disparity = f.fillDisparity(disparity, previousDisparity)
-    elif opt['threshold_option'] == 'mean':
-        disparity = f.fillAltDisparity(disparity)
+        # compute disparity filling (for missing data)
+        if opt['threshold_option'] == 'previous':
+            # load previous disparity to fill in missing content.
+            if previousDisparity is not None:
+                disparity = f.fillDisparity(disparity, previousDisparity)
+        elif opt['threshold_option'] == 'mean':
+            disparity = f.fillAltDisparity(disparity)
 
-    # save the disparity and return that for the next iteration in the loop.
-    previousDisparity = disparity
+        # save the disparity and return that for the next iteration in the loop.
+        previousDisparity = disparity
+    except Exception as e:
+        print("Cannot compute the disparity.")
+        disparity = f.getBlackImage()
 
+    # add disparity to list of images.
     images.append(("Disparity",disparity))
+
+    # ------------------------------
+    # 3. DISPARITY POST-PROCESSING
+    # ------------------------------
 
     # mask the disparity s.t we have a reccomended filter range.
     maskedDisparity = f.maskDisparity(disparity)
@@ -54,11 +70,9 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # cap the disparity since we know we don't really need most of the information there.
     cappedDisparity = f.capDisparity(disparity)
 
-    # time_start = datetime.datetime.now()
-    # f.projectDisparityMultiProcessing(disparity,opt['max_disparity'], imgL)
-    # f.projectDisparityMultiProcessing(maskedDisparity,opt['max_disparity'])
-    # time_end = datetime.datetime.now()
-    # print(time_end - time_start)
+    # ------------------------------
+    # 4. DISPARITIES TO POINT CLOUDS
+    # ------------------------------
 
     # project to a 3D colour point cloud
     points = f.projectDisparityTo3d(cappedDisparity, opt['max_disparity'], imgL)
@@ -66,88 +80,102 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
 
     # canny = f.performCanny(grayL)
 
-    # then here we compute ransac which will give us the coefficents for our plane.
+    # ------------------------------
+    # 5. PLANE FINDING VIA RANSAC
+    # ------------------------------
+    planePoints = []
     try:
+        # compute ransac which will give us the coefficents for our plane.
         normal, abc = f.RANSAC(maskpoints, opt['ransac_trials'])
-        print("Normal:", str(round(normal[0][0],4))+"x +", str(round(normal[1][0],4))+"y +", str(round(normal[2],4)) + "z")
+        # print normal string.
+        f.printNormalString(normal)
+
         # we calculate the error distances between the points on the disparity and the plane.
         pointDifferences = f.calculatePointErrors(abc, points)
 
-        # compute good points.
-        # here we allocate a threshold s.t if it is beyond this level, we discard the point.
+        # compute good points from the plane; using a threshold for a point limit.
         points = f.computePlanarThreshold(points,pointDifferences,opt['point_threshold'])
 
-        # now we sanitise the points.
+        # sanitise the points by colour.
         histogram = f.calculateColourHistogram(points)
 
         pointColourThreshold = 20
         points = f.filterPointsByHistogram(points, histogram, pointColourThreshold)
-        # ----------------------------------------
-
-        # ● For the purposes of this assignment when a road has either curved road edges or other complexities due to the road configuration (e.g. junctions, roundabouts, road type, occlusions) report and display the road boundaries as far as possible using a polygon or an alternative pixel-wise boundary.
 
         # convert 3D points back into 2d.
-        pts = f.project3DPointsTo2DImagePoints(points)
-        pts = np.array(pts, np.int32)
-        pts = pts.reshape((-1,1,2))
-        # print(pts)
-    
-        # copy = imgL.copy()
-        # plane_shape = f.generatePlaneShape(pts, copy)
-
-        # cv2.imshow('left imaged',plane_shape)
-        # # convert back to points.
-
-        # pts = f.getPtsAgain(plane_shape)
-        # imgL = f.detectObjects(imgL)
-        # When the road surface plane are detected within a stereo image it must display a red polygon on the left (colour) image highlighting where the road plane has been detected as shown in Figure 1.
-        # imgL = f.drawConvexHull(pts, imgL)
-        # cv2.polylines(imgL,[pts],True,(0,255,255), 3)
-        # print(pts)
-
-        imageRoadMap = imgL.copy()
-        for i in pts:
-            imageRoadMap[i[0][1]][i[0][0]] = [0,255,0]
-        images.append(("Image Road Map",imageRoadMap))
-
-
-        roadImage = f.generatePointsAsImage(pts)
-
-        images.append(("Road Image",roadImage))
-        cleanedRoadImage, ptz = f.sanitiseRoadImage(roadImage, opt['img_size'])
-        images.append(("Filtered Road Image",cleanedRoadImage))
-
-        try:
-            # generate convex hull 
-            hull = cv2.convexHull(ptz)
-            # draw hull on image L.
-            cv2.drawContours(imgL,[hull],0,(0,0,255),5)
-            # get center point from the hull points.
-            center =  f.getCenterPoint(hull)
-            # draw normal line.
-            imgL = f.drawNormalLine(imgL, center, normal, disparity)
-
-        except Exception as e:
-            print("There was an error with generating a hull:", e)
-
-
-        images.append(("Result",imgL))
-
-        resulto = f.batchImages(images, opt['img_size'])
-        # h, w = np.size(resulto, 0), np.size(resulto, 1)
-        # print( h,w)
-
-        time_end = datetime.datetime.now()
-        print("Time Taken:",time_end - time_start)
-        print("--------")
+        planePoints = f.project3DPointsTo2DImagePoints(points)
+        planePoints = np.array(planePoints, np.int32)
+        planePoints = planePoints.reshape((-1,1,2))
     except Exception as e:
-        print("Cannot compute normal.")
-        images.append(("None",f.getBlackImage()))
-        images.append(("None",f.getBlackImage()))
-        images.append(("None",f.getBlackImage()))
-        images.append(("None",imgL))
-        resulto = f.batchImages(images, opt['img_size'])
+        print("There was an error with generating a plane:", e)
+
+    # ------------------------------
+    # 6. DRAW POINTS ON IMAGE
+    # ------------------------------
+    imageRoadMap = imgL.copy()
+    for i in planePoints:
+        imageRoadMap[i[0][1]][i[0][0]] = [0,255,0]
+    images.append(("Image Road Map",imageRoadMap))
+
+    # ------------------------------
+    # 7. DRAW POINTS INTO OWN IMAGE
+    # ------------------------------
+    roadImage = []
+    try:
+        roadImage = f.generatePointsAsImage(planePoints)
+    except Exception as e:
+        print("There was an error with generating a road image:", e)
+        roadImage = f.getBlackImage()
+    images.append(("Road Image",roadImage))
+
+    # ------------------------------
+    # 8. CLEAN ROAD POINTS
+    # ------------------------------
+
+    # sanitise the road image.
+    cleanedRoadImage = []
+    resultingPoints = []
+    try:
+        cleanedRoadImage, resultingPoints = f.sanitiseRoadImage(roadImage, opt['img_size'])
+    except Exception as e:
+        print("There was an error with cleaning the road image:", e)
+        # since an error was found, use the original, uncleaned planepoints.
+        cleanedRoadImage = f.getBlackImage()
+        resultingPoints = planePoints
+    images.append(("Filtered Road Image",cleanedRoadImage))
+
+    # ------------------------------
+    # 9. DRAW ROAD AND NORMAL LINES
+    # ------------------------------
+    resulting_image = imgL
+    try:
+        # generate convex hull and draw it on the image.
+        imgL, hull = f.drawContours(imgL, resultingPoints)
+        # get center point from the hull points.
+        center =  f.getCenterPoint(hull)
+        # draw normal line.
+        resulting_image = f.drawNormalLine(imgL, center, normal, disparity)
+    except Exception as e:
+        print("There was an error with generating a hull:", e)
+        
+    images.append(("Result",resulting_image))
+
+    # ------------------------------
+    # 10*. GENERATE IMAGE TILES
+    # * This is optional but it shows the processed images.
+    # ------------------------------
+
+    img_tile = f.batchImages(images, opt['img_size'])
+
+    # compute time taken (so I don't lose my mind)
+    time_end = datetime.datetime.now()
+    print("Time Taken:",time_end - time_start)
+    print("--------")
+
     if opt['loop'] == True:
-        cv2.imshow('Result',resulto)
+        # display image results.
+        cv2.imshow('Result',img_tile)
         f.handleKey(cv2, opt['pause_playback'], disparity, imgL, imgR, opt['crop_disparity'])
-    return resulto, previousDisparity
+    
+    # return the results.
+    return img_tile, previousDisparity

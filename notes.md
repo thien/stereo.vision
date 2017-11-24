@@ -6,8 +6,9 @@
     no longer necessary.
 - will need to display multiple images in a set.
     done.
+- set up video recording
+    done.
 
 
 - filter by HSV.
 - will need to detect objects that obstruct the plane.
-- set up video recording
