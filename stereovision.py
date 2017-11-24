@@ -13,9 +13,10 @@ default_options = {
     'max_disparity' : 64,
     'ransac_trials' : 600,
     'loop': True,
-    'point_threshold' : 0.04,
+    'point_threshold' : 0.03,
     'img_size' : (544,1024),
-    'threshold_option' : 'previous',
+    'threshold_option' : 'previous', # options are: 'previous' or 'mean'
+    'record_video' : False,
     'video_filename' : 'previous.avi'
 }
 

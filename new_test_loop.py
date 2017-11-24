@@ -42,7 +42,7 @@ options = {
     'point_threshold' : 0.03,
     'img_size' : (544,1024),
     'threshold_option' : 'previous', # options are: 'previous' or 'mean'
-    'record_video' : True,
+    'record_video' : False,
     'video_filename' : 'previous.avi'
 }
 
@@ -102,7 +102,10 @@ for filename_l in filelist_l:
 
         filename_r = filename_l.replace("_L", "_R")
         print(filename_l);
-        print(filename_r + " - Normal:" + f.NormalString(normal));
+        if normal is not None:
+            print(filename_r + " - Normal:" + f.NormalString(normal))
+        else:
+            print(filename_r + " - Normal could not be computed")
 
     else:
         print("-- files skipped (perhaps one is missing or not PNG)")
