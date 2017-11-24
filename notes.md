@@ -8,7 +8,10 @@
     done.
 - set up video recording
     done.
-
+- verify that it runs on durham Computers
+    done.
 - print normal properly
+    done.
+
 - filter by HSV.
-- will need to detect objects that obstruct the plane.
+- detect objects that obstruct the plane.

@@ -3,6 +3,7 @@ import math
 import numpy as np
 import random
 import os
+import colorsys
 import csv
 from multiprocessing import Pool
 
@@ -77,6 +78,11 @@ def gammaChange(image, gamma=1.0):
     # apply gamma correction using the lookup table
     return cv2.LUT(image, table)
 
+# -------------------------------------------------------------------
+
+def BGRtoHSV(r,g,b):
+    # Converts RGB to HSV.
+    return colorsys.rgb_to_hsv(r,g,b)
 # -------------------------------------------------------------------
 
 def preProcessImages(imgL,imgR):
