@@ -98,14 +98,13 @@ for filename_l in filelist_l:
 
         if options['record_video']:
             video_writer.write(image)
-        # ● Your program must compile and work with OpenCV 3.3 on the lab PCs.
 
         filename_r = filename_l.replace("_L", "_R")
         print(filename_l);
         if normal is not None:
-            print(filename_r + " - Normal:" + f.NormalString(normal))
+            print(filename_r + " - Road Surface Normal:" + f.NormalString(normal))
         else:
-            print(filename_r + " - Normal could not be computed")
+            print(filename_r + " - Road Surface Normal could not be computed")
 
     else:
         print("-- files skipped (perhaps one is missing or not PNG)")
