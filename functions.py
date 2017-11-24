@@ -25,7 +25,7 @@ stereoProcessor = cv2.StereoSGBM_create(0, max_disparity, 21);
 disparity_range = cv2.imread("masks/disparity_cap.png", cv2.IMREAD_GRAYSCALE)
 road_threshold_mask = cv2.imread("masks/road_threshold_mask.png", cv2.IMREAD_GRAYSCALE)
 car_front_mask = cv2.imread("masks/car_front_mask.png", cv2.IMREAD_GRAYSCALE);
-blackImg = cv2.imread("black.png", cv2.IMREAD_GRAYSCALE);
+blackImg = cv2.imread("masks/black.png", cv2.IMREAD_GRAYSCALE);
 view_range = cv2.imread("masks/view_range.png", cv2.IMREAD_GRAYSCALE);
 plane_sample = cv2.imread("masks/plane_sample.png", cv2.IMREAD_GRAYSCALE);
 carmask = cv2.bitwise_and(car_front_mask,car_front_mask,mask = view_range)
