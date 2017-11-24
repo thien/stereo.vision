@@ -34,10 +34,11 @@ skip_forward_file_pattern = ""
 
 
 options = {
-    'crop_disparity' : False, # display full or cropped disparity image
-    'pause_playback' : False, # pause until key press after each image
-    'max_disparity' : 64,
+    'crop_disparity' : False,       # display full or cropped disparity image
+    'pause_playback' : False,       # pause until key press after each image
+    'max_disparity' : 128,
     'ransac_trials' : 600,
+    'road_color_thresh': 20,        # remove points from roadpts if it isn't in the x most populous colours 
     'loop': True,
     'point_threshold' : 0.03,
     'img_size' : (544,1024),

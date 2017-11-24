@@ -4,14 +4,15 @@ import numpy as np
 # import csv
 import functions as f
 import datetime
+import sys
 
-# setup the disparity stereo processor to find a maximum of 128 disparity values
 # (adjust parameters if needed - this will effect speed to processing)
-default_options = {
-    'crop_disparity' : False, # display full or cropped disparity image
-    'pause_playback' : False, # pause until key press after each image
-    'max_disparity' : 64,
+default_opts = {
+    'crop_disparity' : False,       # display full or cropped disparity image
+    'pause_playback' : False,       # pause until key press after each image
+    'max_disparity' : 128,
     'ransac_trials' : 600,
+    'road_color_thresh': 20,        # remove points from roadpts if it isn't in the x most populous colours 
     'loop': True,
     'point_threshold' : 0.03,
     'img_size' : (544,1024),
@@ -20,7 +21,7 @@ default_options = {
     'video_filename' : 'previous.avi'
 }
 
-def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
+def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
     # initiate images list.
     images = []
 
@@ -40,19 +41,14 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
     # compute disparity image
     disparity = None
     try:
+        # generate disparity
         disparity = f.disparity(grayL,grayR, opt['max_disparity'], opt['crop_disparity'])
-
-        # compute disparity filling (for missing data)
-        if opt['threshold_option'] == 'previous':
-            # load previous disparity to fill in missing content.
-            if previousDisparity is not None:
-                disparity = f.fillDisparity(disparity, previousDisparity)
-        elif opt['threshold_option'] == 'mean':
-            disparity = f.fillAltDisparity(disparity)
-
+        # clean holes in the disparity
+        disparity = f.disparityCleaning(disparity, opt['threshold_option'], prev_disp)
         # save the disparity and return that for the next iteration in the loop.
-        previousDisparity = disparity
+        prev_disp = disparity
     except Exception as e:
+        # if theres an error in cleaning the disparity, return a black image.
         print("Cannot compute the disparity.")
         disparity = f.getBlackImage()
 
@@ -65,22 +61,20 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
 
     # mask the disparity s.t we have a reccomended filter range.
     maskedDisparity = f.maskDisparity(disparity)
-
     # cap the disparity since we know we don't really need most of the information there.
     cappedDisparity = f.capDisparity(disparity)
 
     # ------------------------------
-    # 4. DISPARITIES TO POINT CLOUDS
+    # 4. DISPARITY TO POINT CLOUDS
     # ------------------------------
 
     # project to a 3D colour point cloud
+    # we have points and maskpoints because we generate a plane from the mask points and compare them to the points in the original disparity.
     points = f.projectDisparityTo3d(cappedDisparity, opt['max_disparity'], imgL)
     maskpoints = f.projectDisparityTo3d(maskedDisparity, opt['max_disparity'])
 
-    # canny = f.performCanny(grayL)
-
     # ------------------------------
-    # 5. PLANE FINDING VIA RANSAC
+    # 5. PLANE FINDING WITH RANSAC
     # ------------------------------
     planePoints = []
     normal = None
@@ -94,17 +88,20 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
         # compute good points from the plane - using a threshold for a point limit.
         points = f.computePlanarThreshold(points,pointDifferences,opt['point_threshold'])
 
-        # sanitise the points by colour.
+        # generate colour histogram from the road points
         histogram = f.calculateColourHistogram(points)
 
-        pointColourThreshold = 20
-        points = f.filterPointsByHistogram(points, histogram, pointColourThreshold)
+        # filter the colours in the points using the histogram
+        points = f.filterPointsByHistogram(points, histogram, opt['road_color_thresh'])
 
         # convert 3D points back into 2d.
         planePoints = f.project3DPointsTo2DImagePoints(points)
         planePoints = np.array(planePoints, np.int32)
         planePoints = planePoints.reshape((-1,1,2))
     except Exception as e:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        print ("*** print_tb:")
+        traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
         print("There was an error with generating a plane:", e)
 
     # ------------------------------
@@ -171,4 +168,4 @@ def performStereoVision(imgL,imgR, previousDisparity=None, opt=default_options):
         f.handleKey(cv2, opt['pause_playback'], disparity, imgL, imgR, opt['crop_disparity'])
     
     # return the results.
-    return img_tile, previousDisparity, normal
+    return img_tile, prev_disp, normal

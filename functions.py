@@ -7,6 +7,10 @@ import os
 import colorsys
 import csv
 
+# -------------------------------------------------------------------
+# INITIALISE VARIABLES
+# -------------------------------------------------------------------
+
 # focal length in pixels
 camera_focal_length_px = 399.9745178222656
 # focal length in metres (4.8 mm) 
@@ -19,6 +23,7 @@ image_centre_w = 474.5;
 # maximum disparity
 max_disparity = 128;
 # initial load of stereo processor
+
 stereoProcessor = cv2.StereoSGBM_create(0, max_disparity, 21);
     
 # load pre-requisite masks s.t they're ready for when they are needed on an image.
@@ -85,9 +90,18 @@ def gammaChange(image, gamma=1.0):
     # apply gamma correction using the lookup table
     return cv2.LUT(image, table)
 
-def BGRtoHSV(r,g,b):
+def getPointColour(point):
+    """
+    To be used on a rgb point cloud.
+    """
+    return (point[3], point[4], point[5])
+
+
+def BGRtoHSVHue(rgb):
+    r,g,b = rgb
     # Converts RGB to HSV.
-    return colorsys.rgb_to_hsv(r,g,b)
+    hue = round(colorsys.rgb_to_hsv(r,g,b)[0], 3)
+    return str(hue)
 
 def preProcessImages(imgL,imgR):
 
@@ -173,6 +187,16 @@ def disparity(grayL, grayR, max_disparity, crop_disparity):
 
     disparity_scaled = (disparity_scaled * (256. / max_disparity)).astype(np.uint8)
     return disparity_scaled
+
+def disparityCleaning(disparity, option, prev_disp=None):
+     # compute disparity filling (for missing data)
+    if option == 'previous':
+        # load previous disparity to fill in missing content.
+        if prev_disp is not None:
+            disparity = fillDisparity(disparity, prev_disp)
+    elif option == 'mean':
+        disparity = fillAltDisparity(disparity)
+    return disparity
 
 def fillDisparity(disparity, previousDisparity):
     if previousDisparity is not None:
@@ -288,8 +312,10 @@ def calculateColourHistogram(points):
     # get colour points for each point in plane.
     # convert it to greyscale
     # colours = [RGBToGreyscale(pt[3],pt[4],pt[5]) for pt in points]
-    colours = [tuple([pt[3],pt[4],pt[5]]) for pt in points]
+    # colours = [tuple([pt[3],pt[4],pt[5]]) for pt in points]
 
+    colours = [BGRtoHSVHue((pt[3],pt[4],pt[5])) for pt in points]
+    # print(colours)
     histogram = {}
     for i in colours:
         if i not in histogram:
@@ -300,7 +326,7 @@ def calculateColourHistogram(points):
 
 def filterPointsByHistogram(points, histogram, threshold=100):
     # pythonic expression for filtering points by histogram
-    return [x for x in points if histogram[getPointColour(x)] > threshold]
+    return [x for x in points if histogram[BGRtoHSVHue(getPointColour(x))] > threshold]
 
 def calculateHistogram(img):
     hist = cv2.calcHist([img],[0],None,[256],[0,256])
@@ -593,12 +619,6 @@ def performCanny(image):
     image = cv2.bitwise_and(image,image,mask = car_front_mask)
     return image
 	# image = cv2.bitwise_and(check_blurred, check_blurred, mask=mask_base)
-
-def getPointColour(point):
-    """
-    To be used on a rgb point cloud.
-    """
-    return (point[3], point[4], point[5])
 
 def NormalString(normal):
     normalString = "("+str(round(normal[0][0],4))+", " + str(round(normal[1][0],4))+", " + str(round(normal[2],4))+")"

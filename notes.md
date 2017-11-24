@@ -12,6 +12,7 @@
     done.
 - print normal properly
     done.
-
 - filter by HSV.
+    done.
+    
 - detect objects that obstruct the plane.
