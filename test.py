@@ -30,7 +30,6 @@ filelist_l = sorted(os.listdir(path_dir_l));
 
 # Start the loop
 filename_l = "1506942475.481834_L.png"
-# filename_l = "1506943132.486155_L.png"
 
 options = {
     'crop_disparity' : False, # display full or cropped disparity image
@@ -46,7 +45,6 @@ options = {
 }
 # setup the disparity stereo processor to find a maximum of 128 disparity values
 # (adjust parameters if needed - this will effect speed to processing)
-
 
 
 # # from the left image filename get the correspondoning right image

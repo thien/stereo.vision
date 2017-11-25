@@ -468,8 +468,9 @@ def generatePointsAsImage(points):
 def sanitiseRoadImage(img, size):
     (height, width) = size
     referenceImg = img.copy()
+    
     # perform closing on the image to fill holes
-    kernel = np.ones((9,9),np.uint8)
+    kernel = np.ones((3,3),np.uint8)
     img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
     # erode a little bit.
     img = cv2.erode(img,kernel,iterations = 2)
@@ -478,15 +479,9 @@ def sanitiseRoadImage(img, size):
     img = cv2.bitwise_and(img,img,mask = road_threshold_mask)
 
     img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
-    # # Generate est. Border.
-    # bigKernel = np.ones((15,15),np.uint8)
-    # Borders = cv2.dilate(img,bigKernel,iterations = 1)
-    # Borders = cv2.erode(Borders,bigKernel,iterations = 1)
+    # remove small particles manually
+    img = ParticleCleansing(img)
 
-    # Borders = removeSmallParticles(Borders, 200)
-
-    # blurredImg = cv2.GaussianBlur(img,(15,15),0)
-    # img = cv2.bitwise_and(img, img, mask=referenceImg)
     pts = []
     for i in range(height):
         for j in range(width):
@@ -517,8 +512,11 @@ def ParticleCleansing(image):
 	_, contours, _= cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 	for spot in contours:
 		area = cv2.contourArea(spot)
-		if area < 20:
+		if area < 50:
 			cv2.drawContours(image,[spot],0,0,-1)
+        else:
+            # its fairly large, fill it in.
+            cv2.drawContours(image,[spot],0,255,-100)
 	return image
 
 # -------------------------------------------------------------------
@@ -543,7 +541,7 @@ def getNormalVectorLine(basePoint, abc, disparity):
     Y = ((y - image_centre_h) * Z) / f;
 
     newY = Y - 0.7
-    newX = X + 0.01
+    newX = X + 0.0
 
     d = math.sqrt(abc[0]*abc[0]+abc[1]*abc[1]+abc[2]*abc[2])
 
@@ -612,6 +610,16 @@ def detectObjects(image):
 # MISC
 # -------------------------------------------------------------------
 
+def printFilenamesAndNormals(filename_l, normal):
+    normalString = "("+str(round(normal[0][0],4))+", " + str(round(normal[1][0],4))+", " + str(round(normal[2],4))+")"
+
+    filename_r = filename_l.replace("_L", "_R")
+    print(filename_l);
+    if normal is not None:
+        print(filename_r + " - Road Surface Normal:" + normalString)
+    else:
+        print(filename_r + " - Road Surface Normal: (0,0,0)")
+
 def performCanny(image):
     # image = cv2.GaussianBlur(image,(5,5),0)
     image = cv2.Canny(image,110,200)
@@ -619,10 +627,6 @@ def performCanny(image):
     image = cv2.bitwise_and(image,image,mask = car_front_mask)
     return image
 	# image = cv2.bitwise_and(check_blurred, check_blurred, mask=mask_base)
-
-def NormalString(normal):
-    normalString = "("+str(round(normal[0][0],4))+", " + str(round(normal[1][0],4))+", " + str(round(normal[2],4))+")"
-    return normalString
 
 def getBlackImage():
     # returns a black image (the size of our reference image)

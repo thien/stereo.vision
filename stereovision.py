@@ -106,8 +106,10 @@ def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
         traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
         print("There was an error with generating a plane:", e)
 
+
+    
     # ------------------------------
-    # 6. DRAW POINTS ON IMAGE
+    # 6. DRAW POINTS INTO OWN IMAGE
     # ------------------------------
 
     imageRoadMap = imgL.copy()
@@ -117,9 +119,6 @@ def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
     # add the resulting image to the list of images.
     images.append(("Image Road Map",imageRoadMap))
 
-    # ------------------------------
-    # 7. DRAW POINTS INTO OWN IMAGE
-    # ------------------------------
     roadImage = []
     try:
         roadImage = f.generatePointsAsImage(planePoints)
@@ -131,7 +130,7 @@ def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
     images.append(("Road Image",roadImage))
 
     # ------------------------------
-    # 8. CLEAN ROAD POINTS
+    # 7. CLEAN ROAD POINTS
     # ------------------------------
 
     # sanitise the road image.
@@ -149,7 +148,7 @@ def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
     images.append(("Filtered Road Image",cleanedRoadImage))
 
     # ------------------------------
-    # 9. DETECT OBJECTS
+    # 8. DETECT OBJECTS
     # ------------------------------
 
     try:
@@ -163,23 +162,19 @@ def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
         objectImage = cv2.bitwise_not(cleanedRoadImage3)
         # mask this image with the hull mask.
         objectImage = cv2.bitwise_and(objectImage, objectImage, mask=hullMask)
-        # cv2.imshow('Result',objectImage)
-        # cv2.waitKey(0);
-        # convert it to bgr
+        # convert object image to bgr
         objectImage = cv2.cvtColor(objectImage, cv2.COLOR_GRAY2BGR)
-        # objectImage[mask == 255] = (168, 55, 196)
-        # objectImage=[[[0,0,255] for j in i] for i in objectImage]
+        # turn image yellow.
         objectImage[np.where((objectImage == [255,255,255]).all(axis = 2))] = [0,255,255]
+        # we then overlay the object image to the display image so that we can see where objects are.
         alpha = 0.4
         imgL = cv2.addWeighted(objectImage, alpha, imgL, 1 - alpha, 0, imgL)
     except Exception as e:
         print("There was an error in detecting objects:", e)
-        
+
     # ------------------------------
     # 9. DRAW ROAD AND NORMAL LINES
     # ------------------------------
-
-    
     resulting_image = imgL
     
     try:
