@@ -608,14 +608,13 @@ def detectObjects(image):
 # -------------------------------------------------------------------
 
 def printFilenamesAndNormals(filename_l, normal):
-    normalString = "("+str(round(normal[0][0],4))+", " + str(round(normal[1][0],4))+", " + str(round(normal[2],4))+")"
+    normalString = "(0,0,0)"
+    if normal is not None:
+        normalString = "("+str(round(normal[0][0],4))+", " + str(round(normal[1][0],4))+", " + str(round(normal[2],4))+")"
 
     filename_r = filename_l.replace("_L", "_R")
     print(filename_l);
-    if normal is not None:
-        print(filename_r + " - Road Surface Normal:" + normalString)
-    else:
-        print(filename_r + " - Road Surface Normal: (0,0,0)")
+    print(filename_r + " - Road Surface Normal:" + normalString)
 
 def performCanny(image):
     # image = cv2.GaussianBlur(image,(5,5),0)
