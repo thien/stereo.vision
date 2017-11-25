@@ -513,7 +513,7 @@ def ParticleCleansing(image):
 	for spot in contours:
 		area = cv2.contourArea(spot)
 		if area < 70:
-			cv2.drawContours(image,[spot],0,0,-1)
+			cv2.drawContours(image,[spot],0,255,-100)
 	return image
 
 # -------------------------------------------------------------------
