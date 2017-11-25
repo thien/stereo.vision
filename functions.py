@@ -127,7 +127,12 @@ def preProcessImages(imgL,imgR):
         images[i] = gammaChange(images[i], 1.4)
         # img_hsl = cv2.cvtColor(images[i], cv2.COLOR_BGR2HLS)
         hsv = cv2.cvtColor(images[i], cv2.COLOR_BGR2HSV)
-        hsv[:,0,:] = 10
+
+        # sets all saturation to 127
+        # hsv[:,:,1] = 127
+        # sets all values to 127
+        # hsv[:,:,2] = 127
+        
         images[i] = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
 
 
