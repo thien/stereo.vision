@@ -497,7 +497,7 @@ def generatePlaneShape(points, copy):
     for i in points:
         # print(i)
         img[i[0][1]][i[0][0]] = 255
-    kernel = np.ones((3,3),np.uint8)
+    kernel = np.ones((5,5),np.uint8)
     img = cv2.erode(img,kernel,iterations = 1)
     img = ParticleCleansing(img)
     return img
