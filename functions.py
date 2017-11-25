@@ -96,7 +96,6 @@ def getPointColour(point):
     """
     return (point[3], point[4], point[5])
 
-
 def BGRtoHSVHue(rgb):
     r,g,b = rgb
     # Converts RGB to HSV.
@@ -477,6 +476,8 @@ def sanitiseRoadImage(img, size):
 
     # put a threshold for the road points (used for convex hull purposes)
     img = cv2.bitwise_and(img,img,mask = road_threshold_mask)
+
+    img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
     # # Generate est. Border.
     # bigKernel = np.ones((15,15),np.uint8)
     # Borders = cv2.dilate(img,bigKernel,iterations = 1)
@@ -490,9 +491,7 @@ def sanitiseRoadImage(img, size):
     for i in range(height):
         for j in range(width):
             if img[i][j] != 0:
-
                 k = [j,i]
-                # print(k)
                 pts.append(k)
     pts = np.matrix(pts)
     return img, pts
@@ -526,33 +525,34 @@ def ParticleCleansing(image):
 # CONTOURS AND NORMAL LINES
 # -------------------------------------------------------------------
 
-def drawContours(image, points):
+def drawRoadLine(image, points):
     # generate convex hull
     hull = cv2.convexHull(points)
     # draw hull on image
     return (cv2.drawContours(image,[hull],0,(0,0,255),5), hull)
 
 def getNormalVectorLine(basePoint, abc, disparity):
-    f = camera_focal_length_px;
-    B = stereo_camera_baseline_m;
     # basepoint is x,y
     x,y = basePoint
+
+    f = camera_focal_length_px;
+    B = stereo_camera_baseline_m;
 
     Z = (f * B) / disparity[y,x];
     X = ((x - image_centre_w) * Z) / f;
     Y = ((y - image_centre_h) * Z) / f;
 
-    newY = Y - 0.505
-    newX = X + 0.205
-    newZ = False
+    newY = Y - 0.7
+    newX = X + 0.01
 
     d = math.sqrt(abc[0]*abc[0]+abc[1]*abc[1]+abc[2]*abc[2])
-    Z = d - ((abc[0] * newX) + (abc[1]*newY))
 
+    Z = d - ((abc[0] * newX) + (abc[1]*newY))
+ 
     newX = ((newX * camera_focal_length_px) / Z) + image_centre_w;
     newY = ((newY * camera_focal_length_px) / Z) + image_centre_h;
 
-    results = (int(newX), int(newY[0]))
+    results = (int(newX), int(newY))
     return results
 
 def getCenterPoint(points):
@@ -563,7 +563,7 @@ def getCenterPoint(points):
 def drawNormalLine(baseImage, center, normal, disparity):
     newLine = getNormalVectorLine(center, normal, disparity)
     lineThickness = 2
-    normalLineColor = (20,185,255)
+    normalLineColor = (204,185,22)
     cv2.line(baseImage, center, newLine, normalLineColor, lineThickness)
     circleHeadColour = (normalLineColor[0]+10, normalLineColor[1]+10, normalLineColor[2]+10)
     cv2.circle(baseImage, newLine, 2, circleHeadColour, thickness=10, lineType=8, shift=0)

@@ -13,9 +13,10 @@ default_opts = {
     'pause_playback' : False,       # pause until key press after each image
     'max_disparity' : 128,
     'ransac_trials' : 600,
-    'road_color_thresh': 20,        # remove points from roadpts if it isn't in the x most populous colours 
+    'road_color_thresh': 10,        # remove points from roadpts if it isn't in the x most populous colours 
     'loop': True,
-    'point_threshold' : 0.03,
+    'point_threshold' : 0.05,
+    'image_tiles' : True,           # show all images involved in the process or not
     'img_size' : (544,1024),
     'threshold_option' : 'previous', # options are: 'previous' or 'mean'
     'record_video' : False,
@@ -53,7 +54,7 @@ def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
         print("Cannot compute the disparity.")
         disparity = f.getBlackImage()
 
-    # add disparity to list of images.
+    # add the resulting image to the list of images.
     images.append(("Disparity",disparity))
 
     # ------------------------------
@@ -108,9 +109,12 @@ def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
     # ------------------------------
     # 6. DRAW POINTS ON IMAGE
     # ------------------------------
+
     imageRoadMap = imgL.copy()
     for i in planePoints:
         imageRoadMap[i[0][1]][i[0][0]] = [0,255,0]
+    
+    # add the resulting image to the list of images.
     images.append(("Image Road Map",imageRoadMap))
 
     # ------------------------------
@@ -122,6 +126,8 @@ def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
     except Exception as e:
         print("There was an error with generating a road image:", e)
         roadImage = f.getBlackImage()
+    
+    # add the resulting image to the list of images.
     images.append(("Road Image",roadImage))
 
     # ------------------------------
@@ -138,15 +144,44 @@ def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
         # since an error was found, use the original, uncleaned planepoints.
         cleanedRoadImage = f.getBlackImage()
         resultingPoints = planePoints
+    
+    # add the resulting image to the list of images.
     images.append(("Filtered Road Image",cleanedRoadImage))
+
+    # ------------------------------
+    # 9. DETECT OBJECTS
+    # ------------------------------
+
+    # convex hull on the road image
+    roadHull = cv2.convexHull(resultingPoints)
+    # on our image, we will fill in our convex hull to make a mask.
+    cleanedRoadImage2 = cleanedRoadImage.copy()
+    cleanedRoadImage3 = cleanedRoadImage.copy()
+    hullMask = cv2.drawContours(cleanedRoadImage2,[roadHull],0,255,-100)
+    # make an inverse of our road image to show the non road objects as white.
+    objectImage = cv2.bitwise_not(cleanedRoadImage3)
+    # mask this image with the hull mask.
+    objectImage = cv2.bitwise_and(objectImage, objectImage, mask=hullMask)
+    # cv2.imshow('Result',objectImage)
+    # cv2.waitKey(0);
+    # convert it to bgr
+    objectImage = cv2.cvtColor(objectImage, cv2.COLOR_GRAY2BGR)
+    # objectImage[mask == 255] = (168, 55, 196)
+    # objectImage=[[[0,0,255] for j in i] for i in objectImage]
+    objectImage[np.where((objectImage == [255,255,255]).all(axis = 2))] = [0,255,255]
+    alpha = 0.4
+    imgL = cv2.addWeighted(objectImage, alpha, imgL, 1 - alpha, 0, imgL)
 
     # ------------------------------
     # 9. DRAW ROAD AND NORMAL LINES
     # ------------------------------
+
+    
     resulting_image = imgL
+    
     try:
         # generate convex hull and draw it on the image.
-        imgL, hull = f.drawContours(imgL, resultingPoints)
+        imgL, hull = f.drawRoadLine(imgL, resultingPoints)
         # get center point from the hull points.
         center =  f.getCenterPoint(hull)
         # draw normal line.
@@ -154,6 +189,7 @@ def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
     except Exception as e:
         print("There was an error with generating a hull:", e)
         
+    # add the resulting image to the list of images.
     images.append(("Result",resulting_image))
 
     # ------------------------------

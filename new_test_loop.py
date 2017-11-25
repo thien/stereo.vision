@@ -30,7 +30,7 @@ directory_to_cycle_right = "right-images"
 
 # set to timestamp to skip forward to, optional (empty for start)
 # e.g. set to 1506943191.487683 for the end of the Bailey, just as the vehicle turns
-skip_forward_file_pattern = ""
+skip_forward_file_pattern = "1506942833.482352_L"
 
 
 options = {
@@ -38,12 +38,13 @@ options = {
     'pause_playback' : False,       # pause until key press after each image
     'max_disparity' : 128,
     'ransac_trials' : 600,
-    'road_color_thresh': 20,        # remove points from roadpts if it isn't in the x most populous colours 
+    'road_color_thresh': 10,        # remove points from roadpts if it isn't in the x most populous colours 
     'loop': True,
-    'point_threshold' : 0.03,
+    'point_threshold' : 0.05,
+    'image_tiles' : True,           # show all images involved in the process or not
     'img_size' : (544,1024),
     'threshold_option' : 'previous', # options are: 'previous' or 'mean'
-    'record_video' : False,
+    'record_video' : True,
     'video_filename' : 'previous.avi'
 }
 

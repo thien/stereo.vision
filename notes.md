@@ -14,5 +14,23 @@
     done.
 - filter by HSV.
     done.
-    
+- fix normal arrow.
+    done.
 - detect objects that obstruct the plane.
+    done but not very well.
+
+---
+
+The 3D (localization) uncertainty is caused by a low
+accuracy computation of the disparity value and is mainly
+visible in the depth value. The height is also influenced and
+modeling the uncertainty will help for a robust detection of
+the road. 
+
+---
+
+get the convex hull of the resulting road plane (post filter)
+fill it in and use that as a mask
+mask against our current road spots
+look for black spots within that filter
+we know they're objects
