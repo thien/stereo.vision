@@ -45,7 +45,7 @@ Several approaches were taken to compute the plane:
 
 <!--   ○ effective use of RANSAC for 3D planar surface detection 30% -->
 ### 5.1 Point Cloud Computation
-
+Using the point cloud comparison.
 
 ### 5.2 Disparity Image Computation 
 This has shown to be less precise due to the image range. Increasing the max_disparity does not improve this. 

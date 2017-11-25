@@ -468,7 +468,7 @@ def generatePointsAsImage(points):
 def sanitiseRoadImage(img, size):
     (height, width) = size
     referenceImg = img.copy()
-    
+
     # perform closing on the image to fill holes
     kernel = np.ones((3,3),np.uint8)
     img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
@@ -514,9 +514,6 @@ def ParticleCleansing(image):
 		area = cv2.contourArea(spot)
 		if area < 50:
 			cv2.drawContours(image,[spot],0,0,-1)
-        else:
-            # its fairly large, fill it in.
-            cv2.drawContours(image,[spot],0,255,-100)
 	return image
 
 # -------------------------------------------------------------------
