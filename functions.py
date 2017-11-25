@@ -35,13 +35,6 @@ view_range = cv2.imread("masks/view_range.png", cv2.IMREAD_GRAYSCALE);
 plane_sample = cv2.imread("masks/plane_sample.png", cv2.IMREAD_GRAYSCALE);
 carmask = cv2.bitwise_and(car_front_mask, car_front_mask, mask=view_range)
 
-# https://stackoverflow.com/questions/24814941/concave-hull-with-missing-edges
-# https://github.com/pmneila/morphsnakes
-# http://pathfinder.engin.umich.edu/documents/Feng&Taguchi&Kamat.ICRA.2014.pdf
-# http://web.ipac.caltech.edu/staff/fmasci/home/astro_refs/HoughTrans_lines_09.pdf
-# https://stackoverflow.com/questions/18255958/harris-corner-detection-and-localization-in-opencv-with-python
-# https://stackoverflow.com/questions/32609098/how-to-fast-change-image-brightness-with-python-opencv
-
 # -------------------------------------------------------------------
 # IMAGE LOADING FUNCTIONS
 # -------------------------------------------------------------------
@@ -86,44 +79,25 @@ def gammaChange(image, gamma=1.0):
     invGamma = 1.0 / gamma
     table = np.array([((i / 255.0) ** invGamma) * 255
         for i in np.arange(0, 256)]).astype("uint8")
- 
     # apply gamma correction using the lookup table
     return cv2.LUT(image, table)
 
 def getPointColour(point):
-    """
-    To be used on a rgb point cloud.
-    """
+    # to be used on a 3d point cloud with RGB.
     return (point[3], point[4], point[5])
 
 def BGRtoHSVHue(rgb):
-    r,g,b = rgb
     # Converts RGB to HSV.
+    r,g,b = rgb
     hue = round(colorsys.rgb_to_hsv(r,g,b)[0], 3)
+    # return the hue value
     return str(hue)
 
 def preProcessImages(imgL,imgR):
 
     images = [imgL, imgR]
     for i in range(len(images)):
-        # https://www.packtpub.com/packtlib/book/Application-Development/9781785283932/2/ch02lvl1sec26/Enhancing%20the%20contrast%20in%20an%20image
-        # img_yuv = cv2.cvtColor(images[i], cv2.COLOR_BGR2HSV)
-        # # equalize the histogram of the Y channel
-        # img_yuv[:,:,0] = cv2.equalizeHist(img_yuv[:,:,0])
-        # # convert the YUV image back to RGB format
-        # images[i] = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
-        # soup up gamma
 
-        # phi = 1
-        # theta = 1
-        # # Increase intensity such that
-        # # dark pixels become much brighter, 
-        # # bright pixels become slightly bright
-        # maxIntensity = 255.0 
-        # k = (maxIntensity/phi)*(images[i]/(maxIntensity/theta))**0.5
-        # images[i] = np.array(k,dtype='uint8')
-
-        
         images[i] = gammaChange(images[i], 1.4)
         # img_hsl = cv2.cvtColor(images[i], cv2.COLOR_BGR2HLS)
         hsv = cv2.cvtColor(images[i], cv2.COLOR_BGR2HSV)
@@ -140,12 +114,15 @@ def preProcessImages(imgL,imgR):
     return (imgL, imgR)
 
 def greyscale(imgL,imgR):
+    # mass greyscale.
     images = [imgL, imgR]
     for i in range(len(images)):
+        # convert greyscale
         images[i] = cv2.cvtColor(images[i], cv2.COLOR_BGR2GRAY);
+        # equalise the histogram to improve greyscale performance
+        # (for disparity)
         images[i] = cv2.equalizeHist(images[i])
-    imgL, imgR = images[0],images[1]
-    return (imgL, imgR)
+    return (images[0],images[1])
 
 def RGBToGreyscale(r,g,b):
     # we use some modified YLinear weights sourced from (https://en.wikipedia.org/wiki/Grayscale)
