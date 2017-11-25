@@ -470,7 +470,7 @@ def sanitiseRoadImage(img, size):
     referenceImg = img.copy()
 
     # perform closing on the image to fill holes
-    kernel = np.ones((3,3),np.uint8)
+    kernel = np.ones((5,5),np.uint8)
     img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
     # erode a little bit.
     img = cv2.erode(img,kernel,iterations = 2)
