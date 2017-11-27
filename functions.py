@@ -368,12 +368,7 @@ def planarFitting(randomPoints, points):
     
     dist = abs((np.dot(randomPoints, abc) - 1)/d)
 
-    # calculate the normal
-    normal = (abc[0],abc[1],-1)
-    nn = np.linalg.norm(normal)
-    normal = normal / nn
-
-    return abc, normal, dist
+    return abc, abc, dist
 
 def RANSAC(points, trials):
     # Your solution must use a RANdom SAmple and Consensus (RANSAC) approach to perform the detection of the 3D plane in front of the vehicle (when and where possible).
@@ -568,22 +563,6 @@ def drawConvexHull(pts, base, thickness=1, colour=(0,0,255)):
     cv2.drawContours(base,[hull],0,colour,thickness)
     return base
 
-# automatically detecting and highlighting obstacles that rise above the road surface plane (vehicles, pedestrians, bollards etc.) as they appear directly in front of the vehicles
-def detectObjects(image):
-    # https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_feature2d/py_features_harris/py_features_harris.html
-    gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
-
-    gray = np.float32(gray)
-    dst = cv2.cornerHarris(gray,2,3,0.04)
-
-    #result is dilated for marking the corners, not important
-    dst = cv2.dilate(dst,None)
-
-    # Threshold for an optimal value, it may vary depending on the image.
-    image[dst>0.01*dst.max()]=[255,0,0]
-
-    return image
-
 
 # -------------------------------------------------------------------
 # MISC
@@ -592,7 +571,7 @@ def detectObjects(image):
 def printFilenamesAndNormals(filename_l, normal):
     normalString = "(0,0,0)"
     if normal is not None:
-        normalString = "("+str(round(normal[0][0],4))+", " + str(round(normal[1][0],4))+", " + str(round(normal[2],4))+")"
+        normalString = "("+str(round(normal[0][0],4))+", " + str(round(normal[1][0],4))+", " + str(round(normal[2][0],4))+")"
 
     filename_r = filename_l.replace("_L", "_R")
     print(filename_l);
