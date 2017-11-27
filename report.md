@@ -14,10 +14,8 @@
 When both images are loaded, they are faced with gamma corrections and are then converted to greyscale. The greyscale images are then histogram equalised to counter any defects on colours.
 
 ## 2. Disparity Processing
-<!-- ○ any image pre-filtering performed (or similar first stage processing) -->
 
-The left and right image channels are then used to create the disparity.
-In the event that there is information missing, two methods were tested.
+The left and right image channels are then used to create the disparity. In the event that there is information missing, two methods were tested.
 
 ### 2.1 Mean Processing
 For each row in the disparity image, we calculate its non-zero mean. This has its own issues where it may seem imprecise; [expand here]
@@ -36,8 +34,6 @@ This reduces the number of computations by (height * width)^2 whilst retaining s
 The ZMax cap is no longer used (from the original code), but we use the disparity value of a given point to calculate the Z Position:
 
 `Z = f*B/disparity(y,x).`
-<!--    ○ the successful use of any heuristics to speed up processing times or reduce false
-    detections (including at the stage of colour pre-filtering) -->
 
 ## 5. Plane Finding with RANSAC
 
@@ -59,15 +55,13 @@ The remaining points from the cloud are projected back to 2D image points.
 From the Road Image, we perform a series of image manipulation operations:
 - Morphological closing to fill small holes within the road image
 - Eroding with a 9x9 kernel
-- capping the road image view by masking it upon a road threshold mask
-- performing another morphological closing
-- removing small particles again through contour detection
+- Capping the road image view by masking it upon a road threshold mask
+- Performing another morphological closing
+- Removing noisy/small pixels again through contour detection
 
 ## 8. Object Detection
-<!--  ○ automatically detecting and highlighting obstacles that rise above the road surface plane
-    (vehicles, pedestrians, bollards etc.) as they appear directly in front of the vehicle s -->
 
-With Object detection, we simply look at the points within the convex hull of the road image. Points that are not recognised as the road but are within the confines of the hull are treated as objects on the road.
+With Object detection, we simply look at the points within the convex hull of the remaining road image. Points that are not recognised as the road but are within the confines of the hull are treated as objects on the road.
 
 This is performed by:
 - creating a convex hull of the image
@@ -87,6 +81,3 @@ The new 3d point is then converted back to a 2D point and the pair is sent back 
 ## Performance
 
 
-<!-- ○ plotting of the planar normal direction direction glyph / vector in the image -->
-<!--     ● General performance on detection of planar orientation and bounds in the imagery **
-    (taking into account accuracy, false detection, missed detection, failures etc.) 30% -->

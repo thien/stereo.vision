@@ -23,6 +23,7 @@ default_opts = {
     'video_filename' : 'previous.avi'
 }
 
+
 def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
     # initiate images list.
     images = []
