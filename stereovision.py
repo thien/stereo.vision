@@ -149,7 +149,7 @@ def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
     images.append(("Filtered Road Image",cleanedRoadImage))
 
     # ------------------------------
-    # 8. DETECT OBJECTS
+    # 8. DETECT OBSTACLES
     # ------------------------------
 
     try:
@@ -159,19 +159,19 @@ def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
         cleanedRoadImage2 = cleanedRoadImage.copy()
         cleanedRoadImage3 = cleanedRoadImage.copy()
         hullMask = cv2.drawContours(cleanedRoadImage2,[roadHull],0,255,-100)
-        # make an inverse of our road image to show the non road objects as white.
-        objectImage = cv2.bitwise_not(cleanedRoadImage3)
+        # make an inverse of our road image to show the non road obstacles as white.
+        obstacleImage = cv2.bitwise_not(cleanedRoadImage3)
         # mask this image with the hull mask.
-        objectImage = cv2.bitwise_and(objectImage, objectImage, mask=hullMask)
-        # convert object image to bgr
-        objectImage = cv2.cvtColor(objectImage, cv2.COLOR_GRAY2BGR)
+        obstacleImage = cv2.bitwise_and(obstacleImage, obstacleImage, mask=hullMask)
+        # convert obstacle image to bgr
+        obstacleImage = cv2.cvtColor(obstacleImage, cv2.COLOR_GRAY2BGR)
         # turn image yellow.
-        objectImage[np.where((objectImage == [255,255,255]).all(axis = 2))] = [0,255,255]
-        # we then overlay the object image to the display image so that we can see where objects are.
+        obstacleImage[np.where((obstacleImage == [255,255,255]).all(axis = 2))] = [0,255,255]
+        # we then overlay the obstacle image to the display image so that we can see where obstacles are.
         alpha = 0.4
-        imgL = cv2.addWeighted(objectImage, alpha, imgL, 1 - alpha, 0, imgL)
+        imgL = cv2.addWeighted(obstacleImage, alpha, imgL, 1 - alpha, 0, imgL)
     except Exception as e:
-        print("There was an error in detecting objects:", e)
+        print("There was an error in detecting obstacles:", e)
 
     # ------------------------------
     # 9. DRAW ROAD AND NORMAL LINES

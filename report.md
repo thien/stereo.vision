@@ -59,16 +59,16 @@ From the Road Image, we perform a series of image manipulation operations:
 - Performing another morphological closing
 - Removing noisy/small pixels again through contour detection
 
-## 8. Object Detection
+## 8. Obstacle Detection
 
-With Object detection, we simply look at the points within the convex hull of the remaining road image. Points that are not recognised as the road but are within the confines of the hull are treated as objects on the road.
+With Obstacle detection, we simply look at the points within the convex hull of the remaining road image. Points that are not recognised as the road but are within the confines of the hull are treated as obstacles on the road.
 
 This is performed by:
 - creating a convex hull of the image
 - creating a mask using the convex hull
-- inverting the original road image to show the object spots
+- inverting the original road image to show the obstacle spots
 - colouring the corresponding points yellow
-- overlaying the object points onto the resulting image
+- overlaying the obstacle points onto the resulting image
 
 ## 9. Drawing Road and Normal Shapes
 
