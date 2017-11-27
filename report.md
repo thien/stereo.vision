@@ -19,8 +19,6 @@ When both images are loaded, they are faced with gamma corrections and are then 
 The left and right image channels are then used to create the disparity.
 In the event that there is information missing, two methods were tested.
 
-During my testing, I found that the quality of the left and right image channels improve the performance of the disparity.
-
 ### 2.1 Mean Processing
 For each row in the disparity image, we calculate its non-zero mean. This has its own issues where it may seem imprecise; [expand here]
 
@@ -35,33 +33,32 @@ We convert the disparities (both the original disparity, and the masked disparit
 
 This reduces the number of computations by (height * width)^2 whilst retaining sufficent points needed to compute an accurate plane. Other step counters have been considered, such as 3 or 4 but during experiments it is found to lose too much information.
 
+The ZMax cap is no longer used (from the original code), but we use the disparity value of a given point to calculate the Z Position:
+
+`Z = f*B/disparity(y,x).`
 <!--    ○ the successful use of any heuristics to speed up processing times or reduce false
     detections (including at the stage of colour pre-filtering) -->
 
 ## 5. Plane Finding with RANSAC
 
-Using the point cloud of the masked disparity, we use RANSAC to choose random points within the cloud and compute a plane from them. We iterate this 600 times, storing the best plane throughout the computation. We compare its performance by calculating the mean error from our random sample of points from the masked disparity point cloud.
+Using the point cloud of the masked disparity, we use RANSAC to choose random points within them (400 points) and to compute a plane. We iterate this 600 times, storing the best plane throughout the computation. We compare its performance by calculating the mean error from our random sample of points from the masked disparity point cloud.
 
-Computing the plane using the disparity image has been trialed, but this has shown to be less precise due to the disparity range. Increasing the max_disparity does not improve this. 
+Computing the plane using the disparity image has been trialed (to bypass computing a 3d point cloud), but this has shown to be less precise due to the disparity range. Increasing the max_disparity does not improve this. 
+
 
 ## 6. Generating Road Points
 
-Using our plane, we calculate for each point in the original disparity whether they fit in the plane. We threshold bad points.
+For each point in the original disparity their distance from the plane using the plane coefficents. We threshold points if they are far enough.
 
-Then, we calculate a histogram for the remaining points, using the HSV Hue value of each point.
-
-We remove points that are not in the most populous colours using a colour threshold.
+Then, we calculate a histogram for the remaining points, using the HSV Hue value of each point. With this histogram, we remove points that are not in the most populous colours using a colour threshold.
 
 The remaining points from the cloud are projected back to 2D image points.
 
 ## 7. Cleaning Road Points
-<!-- ○ automatically adjusting the parameters initial region of interest extraction or image prefiltering
-    based on some form of preliminary analysis image
- -->
 
 From the Road Image, we perform a series of image manipulation operations:
-- morphological closing to fill small holes within the road image
-- eroding
+- Morphological closing to fill small holes within the road image
+- Eroding with a 9x9 kernel
 - capping the road image view by masking it upon a road threshold mask
 - performing another morphological closing
 - removing small particles again through contour detection
