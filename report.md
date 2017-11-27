@@ -1,33 +1,24 @@
-<!-- 
-# https://stackoverflow.com/questions/24814941/concave-hull-with-missing-edges
-# https://github.com/pmneila/morphsnakes
-# http://pathfinder.engin.umich.edu/documents/Feng&Taguchi&Kamat.ICRA.2014.pdf
-# http://web.ipac.caltech.edu/staff/fmasci/home/astro_refs/HoughTrans_lines_09.pdf
-# https://stackoverflow.com/questions/18255958/harris-corner-detection-and-localization-in-opencv-with-python
-# https://stackoverflow.com/questions/32609098/how-to-fast-change-image-brightness-with-python-opencv
- -->
-
 # Report
 # cmkv68
 
 ## 1. Pre Filtering
-When both images are loaded, they are faced with gamma corrections and are then converted to greyscale. The greyscale images are then histogram equalised to counter any defects on colours.
+When both images are loaded, they are faced with gamma corrections and are then converted to greyscale. The greyscale images are then faced with histogram equalisation to counter any defects on colours ranges.
 
 ## 2. Disparity Processing
 
-The left and right image channels are then used to create the disparity. In the event that there is information missing, two methods were tested.
+The left and right image channels are then used to create the disparity. In the event that there is information missing, black points in the disparity image (produced as a result of noise from the input channels) are filled using the values from the previous disparity through overlaying. This improves in quality over time as more information is stored, and works especially well if the car is not travelling fast. 
 
-Black points in the disparity image (produced as a result of noise from the input channels) are filled using the values from the previous disparity, by overlaying. This improves in quality over time as more information is stored, and works especially well if the car is not travelling fast. 
-
-![Dispariy before and after filling](/report_imgs/disparity.png "Optional title")
+![Disparity before and after filling](/report_imgs/disparity.png "Optional title")
 
 ## 3. Disparity Post-Processing
-We can use a heuristic that the majority of the road can fit within a certain parameter of the image. we use a mask that fits the the road as our guide, and make a new disparity image from such.
+We can use a heuristic that the majority of the road would always fit within a certain range in the image. A mask that fits the road is used as our guide, and make a new disparity image from such.
+
+![View Range Mask](/report_imgs/viewrange.png)
 
 ## 4. Disparity to Point Clouds
 We convert the disparities (both the original disparity, and the masked disparity) to point clouds. However, to improve the performance, we increment the step counter by 2 (such that it skips a point per iteration). For the original disparity, we also store rgb values of image_L.
 
-This reduces the number of computations by (height * width)^2 whilst retaining sufficent points needed to compute an accurate plane. Other step counters have been considered, such as 3 or 4 but during experiments it is found to lose too much information.
+This reduces the number of operations by `(height * width)^2` whilst retaining sufficent points needed to compute an accurate plane. Other step counters have been considered, such as 3 or 4 but during experiments it is found to lose too much information.
 
 The ZMax cap is no longer used (from the original code), but we use the disparity value of a given point to calculate the Z Position:
 
@@ -35,16 +26,15 @@ The ZMax cap is no longer used (from the original code), but we use the disparit
 
 ## 5. Plane Finding with RANSAC
 
-Using the point cloud of the masked disparity, we use RANSAC to choose random points within them (400 points) and to compute a plane. We iterate this 600 times, storing the best plane throughout the computation. We compare its performance by calculating the mean error from our random sample of points from the masked disparity point cloud.
+Using the point cloud of the masked disparity, RANSAC is used to compute a plane using 3 random points from the entire plane range. We iterate this 600 times, storing the best plane throughout the computation. We compare the performance of the plane by calculating the mean error from our random sample of points from a random sample (400 points) of the masked disparity point cloud.
 
-Computing the plane using the disparity image has been trialed (to bypass computing a 3d point cloud), but this has shown to be less precise due to the disparity range. Increasing the max_disparity does not improve this. 
-
+Computing the plane using the disparity image has been trialed (to bypass computing a 3d point cloud), but this has shown to be less precise due to the disparity range. Increasing the `max_disparity` variable does not improve this. 
 
 ## 6. Generating Road Points
 
-For each point in the original disparity their distance from the plane using the plane coefficents. We threshold points if they are far enough.
+For each point in the original disparity we calculate its distance from the plane using the plane coefficents. We threshold points if they are far enough.
 
-Then, we calculate a histogram for the remaining points, using the HSV Hue value of each point. With this histogram, we remove points that are not in the most populous colours using a colour threshold.
+Then, we calculate a histogram for the remaining points, using the HSV Hue value of each point. With this histogram, we remove points that are not within the most populous colours using a colour threshold.
 
 The remaining points from the cloud are projected back to 2D image points.
 
@@ -61,23 +51,20 @@ From the Road Image, we perform a series of image manipulation operations:
 
 ## 8. Obstacle Detection
 
-With Obstacle detection, we simply look at the points within the convex hull of the remaining road image. Points that are not recognised as the road but are within the confines of the hull are treated as obstacles on the road.
+With Obstacle detection, we look at the points within the convex hull of the remaining road image. Points that are not recognised as the road but are within the confines of the hull are treated as obstacles on the road.
 
 This is performed by:
-- creating a convex hull of the image
+- creating a convex hull of the road image
 - creating a mask using the convex hull
-- inverting the original road image to show the obstacle spots
+- inverting the original road image to show the obstacle spots and overlaying the mask created prior
 - colouring the corresponding points yellow
 - overlaying the obstacle points onto the resulting image
 
-
 ## 9. Drawing Road and Normal Shapes
 
-First, the convex hull is drawn on the image.
-Then, the center point is calculated from the points generated from the convex hull.
-
-Then, a normal vector line is generated using the center point, converting it to a 3d point, and using the normal vector, we calculate a following point by adjusting the Y point, keeping the X point and using the vector equation to calculate the new Z point.
-The new 3d point is then converted back to a 2D point and the pair is sent back to be drawn on the image.
+This is done by drawing the convex hull on the image. Then, the center point is calculated from the points generated from the hull.
+A normal vector line is generated by converting the center point into a 3D coordinate, and using the normal vector, we calculate a new point by adjusting the Y point, keeping the X point and using the vector equation to calculate the new Z point.
+The new 3d point is then converted back to a 2D point and the pair of points is sent back to be drawn on the image.
 
 ![Green points represents points on the plane.](/report_imgs/obstacles2.png "Road Points")
 
