@@ -98,6 +98,7 @@ for filename_l in filelist_l:
         print("-- files skipped (perhaps one is missing or not PNG)")
     all_frames +=1 
     print("Plane Count Percentage:", counter/all_frames)
+    print("Missing Frame Count:", all_frames-counter)
 
 if options['record_video']:
     print("Video saved to:", options['video_filename'])
