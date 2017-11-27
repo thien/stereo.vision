@@ -1,11 +1,10 @@
-# imports, don't touch them lol
 import cv2
 import numpy as np
-# import csv
 import functions as f
-import datetime
+import time
 import sys
 import traceback
+import csv
 
 # (adjust parameters if needed - this will effect speed to processing)
 default_opts = {
@@ -20,13 +19,22 @@ default_opts = {
     'img_size' : (544,1024),
     'threshold_option' : 'previous', # options are: 'previous' or 'mean'
     'record_video' : False,
+    'record_stats' : False,
     'video_filename' : 'previous.avi'
 }
 
-
 def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
+    if 'frame' not in opt:
+        opt['frame'] = 1
+    else:
+        opt['frame'] += 1
+    # initiate stats list.
+    stats = {}
+    stats["Frame"] = opt['frame']
     # initiate images list.
     images = []
+    # add start timer.
+    start_time = time.time()
 
     # ------------------------------
     # 1. IMAGE PROCESSING
@@ -90,22 +98,31 @@ def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
 
         # compute good points from the plane - using a threshold for a point limit.
         points = f.computePlanarThreshold(points,pointDifferences,opt['point_threshold'])
-
+        stats["Planar Points Before"] = len(points)
         # generate colour histogram from the road points
         histogram = f.calculateColourHistogram(points)
 
         # filter the colours in the points using the histogram
         points = f.filterPointsByHistogram(points, histogram, opt['road_color_thresh'])
+        stats["Planar Points After"] = len(points)
 
+        stats["Planar Pre-Filtering Accuracy"] =  stats["Planar Points After"]/stats["Planar Points Before"]
         # convert 3D points back into 2d.
         planePoints = f.project3DPointsTo2DImagePoints(points)
         planePoints = np.array(planePoints, np.int32)
         planePoints = planePoints.reshape((-1,1,2))
+
+        # add to stats that we computed a plane properly.
+        stats["Computed Planar"] = 1
     except Exception as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         print ("*** print_tb:")
         traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
         print("There was an error with generating a plane:", e)
+        stats["Planar Points Before"] = "-"
+        stats["Planar Points After"] = "-"
+        stats["Planar Pre-Filtering Accuracy"] = "-"
+        stats["Computed Planar"] = 0
 
 
     
@@ -183,6 +200,8 @@ def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
         imgL, hull = f.drawRoadLine(imgL, resultingPoints)
         # get center point from the hull points.
         center =  f.getCenterPoint(hull)
+        stats["Center Point X"] = center[0]
+        stats["Center Point Y"] = center[1]
         # draw normal line.
         resulting_image = f.drawNormalLine(imgL, center, normal, disparity)
     except Exception as e:
@@ -198,10 +217,33 @@ def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
 
     img_tile = f.batchImages(images, opt['img_size'])
 
+    # calculate time taken and add it to stats.
+    stats["Time Taken"] = round(time.time() - start_time, 3)
+
     if opt['loop'] == True:
         # display image results.
         cv2.imshow('Result',img_tile)
         f.handleKey(cv2, opt['pause_playback'], disparity, imgL, imgR, opt['crop_disparity'])
-    
+
+    if opt['record_stats']:
+        if opt['frame'] == 1:
+            # write headers for first frame.
+            headers = []
+            for key in stats.keys():
+                headers.append(str(key))
+            with open("statistics.csv", 'w') as fp:
+                writer = csv.writer(fp, delimiter=',')
+                writer.writerow(headers)
+   
+        # set up input to write to csv file.
+        statistics = []
+        for key in stats.keys():
+            statistics.append(str(stats[key]))
+
+        # write results to file.
+        with open("statistics.csv", 'a') as fp:
+            writer = csv.writer(fp, delimiter=',')
+            writer.writerow(statistics)
+
     # return the results.
     return img_tile, prev_disp, normal
