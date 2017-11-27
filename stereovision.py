@@ -6,7 +6,7 @@ import sys
 import traceback
 import csv
 
-# (adjust parameters if needed - this will effect speed to processing)
+# default values for stereo vision operations
 default_opts = {
     'crop_disparity' : False,       # display full or cropped disparity image
     'pause_playback' : False,       # pause until key press after each image

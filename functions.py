@@ -8,7 +8,7 @@ import colorsys
 import csv
 
 # -------------------------------------------------------------------
-# INITIALISE VARIABLES
+# INITIALISE CONSTANTS
 # -------------------------------------------------------------------
 
 # focal length in pixels
@@ -23,7 +23,6 @@ image_centre_w = 474.5;
 # maximum disparity
 max_disparity = 128;
 # initial load of stereo processor
-
 stereoProcessor = cv2.StereoSGBM_create(0, max_disparity, 21);
     
 # load pre-requisite masks s.t they're ready for when they are needed on an image.

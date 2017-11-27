@@ -28,41 +28,38 @@ path_dir_r =  os.path.join(dataset_path, directory_to_cycle_right);
 filelist_l = sorted(os.listdir(path_dir_l));
 
 
-# Start the loop
+# load a single file.
 filename_l = "1506942475.481834_L.png"
 
 options = {
-    'crop_disparity' : False, # display full or cropped disparity image
-    'pause_playback' : False, # pause until key press after each image
-    'max_disparity' : 64,
+    'crop_disparity' : False,       # display full or cropped disparity image
+    'pause_playback' : False,       # pause until key press after each image
+    'max_disparity' : 128,
     'ransac_trials' : 600,
-    'loop': True,
-    'point_threshold' : 0.03,
+    'road_color_thresh': 10,        # remove points from roadpts if it isn't in the x most populous colours 
+    'point_threshold' : 0.05,
+    'image_tiles' : True,           # show all images involved in the process or not
     'img_size' : (544,1024),
     'threshold_option' : 'previous', # options are: 'previous' or 'mean'
+    'loop': False,
     'record_video' : False,
+    'record_stats' : False,
     'video_filename' : 'previous.avi'
 }
-# setup the disparity stereo processor to find a maximum of 128 disparity values
-# (adjust parameters if needed - this will effect speed to processing)
 
-
-# # from the left image filename get the correspondoning right image
+# from the left image filename get the corresponding right image
 imageStores = f.loadImages(filename_l, path_dir_l, path_dir_r)
 if imageStores != False:
+    # load left and right image channels.
     imgL, imgR = imageStores
+    # perform stereo vision!
     imgL, _ = sv.performStereoVision(imgL, imgR, None, options)
-    
+    # display results.
     cv2.imshow('left image',imgL)
-
-    # print the following.
-    # filename_L.png
-    # filename_R.png : road surface normal (a, b, c)
-
     cv2.waitKey(0);
 else:
+    # looks like there was an error in loading the images.
     print("-- files skipped (perhaps one is missing or not PNG)");
-
 
 # close all windows
 cv2.destroyAllWindows()
