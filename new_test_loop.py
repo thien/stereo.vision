@@ -61,6 +61,10 @@ else:
 
 # disparity placeholder (for the next loop)
 previousDisparity = None
+
+counter = 0
+all_frames = 0
+
 for filename_l in filelist_l:
     """
     Here we'll cycle through the files, and finding each stereo pair.
@@ -88,8 +92,12 @@ for filename_l in filelist_l:
         # print filenames and normals.
         f.printFilenamesAndNormals(filename_l, normal)
 
+        if normal is not None:
+            counter += 1
     else:
         print("-- files skipped (perhaps one is missing or not PNG)")
+    all_frames +=1 
+    print("Plane Count Percentage:", counter/all_frames)
 
 if options['record_video']:
     print("Video saved to:", options['video_filename'])
