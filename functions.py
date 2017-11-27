@@ -256,7 +256,7 @@ def projectDisparityTo3d(disparity, max_disparity, rgb=[]):
     for y in range(0,height-1, 2): # 0 - height is the y axis index
         for x in range(0,width-1, 2): # 0 - width is the x axis index
             # if we have a valid non-zero disparity
-            # points.append(disparity3DCalculation(x,y,disparity,f,B, rgb))
+ 
             if (disparity[y,x] > 0):
                 # calculate corresponding 3D point [X, Y, Z]
                 # stereo lecture - slide 22 + 25
@@ -452,7 +452,7 @@ def sanitiseRoadImage(img, size):
     referenceImg = img.copy()
 
     # perform closing on the image to fill holes
-    kernel = np.ones((5,5),np.uint8)
+    kernel = np.ones((9,9),np.uint8)
     img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
     # erode a little bit.
     img = cv2.erode(img,kernel,iterations = 2)
