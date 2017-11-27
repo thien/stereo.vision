@@ -17,11 +17,9 @@ When both images are loaded, they are faced with gamma corrections and are then 
 
 The left and right image channels are then used to create the disparity. In the event that there is information missing, two methods were tested.
 
-### 2.1 Mean Processing
-For each row in the disparity image, we calculate its non-zero mean. This has its own issues where it may seem imprecise; [expand here]
+Black points in the disparity image (produced as a result of noise from the input channels) are filled using the values from the previous disparity, by overlaying. This improves in quality over time as more information is stored, and works especially well if the car is not travelling fast. 
 
-### 2.2 Previous Disparity Filling
-Every black point in the disparity image is filled using the values from the previous disparity, by overlaying. This improves over time and works especially well if the car is not travelling fast.
+![Dispariy before and after filling](/report_imgs/disparity.png "Optional title")
 
 ## 3. Disparity Post-Processing
 We can use a heuristic that the majority of the road can fit within a certain parameter of the image. we use a mask that fits the the road as our guide, and make a new disparity image from such.
@@ -59,6 +57,8 @@ From the Road Image, we perform a series of image manipulation operations:
 - Performing another morphological closing
 - Removing noisy/small pixels again through contour detection
 
+![Green points represents points on the plane.](/report_imgs/roadpoints.png "Road Points")
+
 ## 8. Obstacle Detection
 
 With Obstacle detection, we simply look at the points within the convex hull of the remaining road image. Points that are not recognised as the road but are within the confines of the hull are treated as obstacles on the road.
@@ -70,6 +70,7 @@ This is performed by:
 - colouring the corresponding points yellow
 - overlaying the obstacle points onto the resulting image
 
+
 ## 9. Drawing Road and Normal Shapes
 
 First, the convex hull is drawn on the image.
@@ -78,6 +79,10 @@ Then, the center point is calculated from the points generated from the convex h
 Then, a normal vector line is generated using the center point, converting it to a 3d point, and using the normal vector, we calculate a following point by adjusting the Y point, keeping the X point and using the vector equation to calculate the new Z point.
 The new 3d point is then converted back to a 2D point and the pair is sent back to be drawn on the image.
 
+![Green points represents points on the plane.](/report_imgs/obstacles2.png "Road Points")
+
 ## Performance
 
-
+Average frame processing time
+number of missing frames; probability
+prefiltering performance
