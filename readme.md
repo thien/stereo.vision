@@ -1,5 +1,10 @@
-# Report
-# cmkv68
+# Stereo Vision
+
+![Loop](media/stereovision.gif)
+
+## Run:
+
+    python3 loop.py
 
 ## 1. Pre Filtering
 When both images are loaded, they are faced with gamma corrections followed by a greyscale conversion. Afterwards, the greyscale images are  faced with histogram equalisation to counter any defects on colours ranges.
