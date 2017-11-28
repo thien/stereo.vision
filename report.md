@@ -68,8 +68,8 @@ This is done by drawing the convex hull on the image. Then, the centre point is 
 
 ## Performance
 
-![Pre-Plane Filtering Accuracy](report_images/pre_filtering_accuracy.png "Pre-Plane Filtering Accuracy")
+![Pre-Plane Filtering Accuracy. Red Line represents line of best fit. We average 97% of road pixels on the plane.](report_images/pre_filtering_accuracy.png "Pre-Plane Filtering Accuracy")
 
-![Time Histogram](report_images/time_histogram.png "Time Histogram")
+![Time Histogram.](report_images/time_histogram.png "Time Histogram")
 
 A video of the full lap can be found at [https://www.youtube.com/watch?v=cNyDkLB4jSc](https://www.youtube.com/watch?v=cNyDkLB4jSc).

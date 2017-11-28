@@ -124,8 +124,6 @@ def performStereoVision(imgL,imgR, prev_disp=None, opt=default_opts):
         stats["Planar Pre-Filtering Accuracy"] = "-"
         stats["Computed Planar"] = 0
 
-
-    
     # ------------------------------
     # 6. DRAW POINTS INTO OWN IMAGE
     # ------------------------------

@@ -1,11 +1,6 @@
-
-"""
-    http://resources.mpi-inf.mpg.de/TemporalStereo/articleJpeg.pdf
-"""
-
-# obvious variable name for the dataset directory
+# obvious variable name for the dataset directory 
+# (this would be in the same directory as this file.)
 dataset_path = "TTBB-durham-02-10-17-sub10"
-
 # optional edits (if needed)
 directory_to_cycle_left = "left-images"
 directory_to_cycle_right = "right-images"
@@ -13,7 +8,6 @@ directory_to_cycle_right = "right-images"
 # set to timestamp to skip forward to, optional (empty for start)
 # e.g. set to 1506943191.487683 for the end of the Bailey, just as the vehicle turns
 skip_forward_file_pattern = ""
-
 
 options = {
     'crop_disparity' : False,       # display full or cropped disparity image
@@ -26,8 +20,8 @@ options = {
     'image_tiles' : True,           # show all images involved in the process or not
     'img_size' : (544,1024),
     'threshold_option' : 'previous', # options are: 'previous' or 'mean'
-    'record_video' : True,
-    'record_stats' : True,
+    'record_video' : False,
+    'record_stats' : False,
     'video_filename' : 'previous.avi'
 }
 
@@ -62,9 +56,6 @@ else:
 # disparity placeholder (for the next loop)
 previousDisparity = None
 
-counter = 0
-all_frames = 0
-
 for filename_l in filelist_l:
     """
     Here we'll cycle through the files, and finding each stereo pair.
@@ -85,24 +76,16 @@ for filename_l in filelist_l:
         imgL, imgR = f.loadImages(imgPaths)
         # compute stereo vision
         image, previousDisparity, normal = sv.performStereoVision(imgL, imgR, previousDisparity, options)
-
-        if options['record_video']:
-            video_writer.write(image)
-
         # print filenames and normals.
         f.printFilenamesAndNormals(filename_l, normal)
-
-        if normal is not None:
-            counter += 1
+        # record frame into video if needed.
+        if options['record_video']:
+            video_writer.write(image)
     else:
         print("-- files skipped (perhaps one is missing or not PNG)")
-    all_frames +=1 
-    print("Plane Count Percentage:", counter/all_frames)
-    print("Missing Frame Count:", all_frames-counter)
-
+# save video to file.
 if options['record_video']:
     print("Video saved to:", options['video_filename'])
     video_writer.release()
-
 # close all windows
 cv2.destroyAllWindows()
