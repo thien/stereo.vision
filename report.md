@@ -70,6 +70,6 @@ The new 3d point is then converted back to a 2D point and the pair of points is 
 
 ## Performance
 
-Average frame processing time
-number of missing frames; probability
-prefiltering performance
+![Pre-Plane Filtering Accuracy](/report_images/pre_filtering_accuracy.png "Pre-Plane Filtering Accuracy")
+
+![Time Histogram](/report_images/time_histogram.png "Time Histogram")
