@@ -432,8 +432,10 @@ def drawNormalLine(baseImage, center, normal, disparity):
 
 def printFilenamesAndNormals(filename_l, normal):
     normalString = "(0,0,0)"
+    nd = 1/math.sqrt(normal[0]*normal[0]+normal[1]*normal[1]+normal[2]*normal[2])
+
     if normal is not None:
-        normalString = "("+str(round(normal[0][0],4))+", " + str(round(normal[1][0],4))+", " + str(round(normal[2][0],4))+")"
+        normalString = "("+str(round(nd*normal[0][0],4))+", " + str(round(nd*normal[1][0],4))+", " + str(round(nd*normal[2][0],4))+")"
 
     filename_r = filename_l.replace("_L", "_R")
     print(filename_l);
