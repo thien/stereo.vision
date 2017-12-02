@@ -282,14 +282,18 @@ def RANSAC(points, trials):
     # compute plane.
     for i in range(trials):
         # select T data points randomly
-        T = random.sample(points, 600)
-        # estimate the plane using this subset of information
-        coefficents, normal, dist = planarFitting(T, points)
-        error = np.mean(dist)
-        # store the results in our dictionary.
-        if error < bestError:
-            bestPlane = (normal,coefficents)
-            bestError = error
+        try:
+            T = random.sample(points, 600)
+            # estimate the plane using this subset of information
+            coefficents, normal, dist = planarFitting(T, points)
+            error = np.mean(dist)
+            # store the results in our dictionary.
+            if error < bestError:
+                bestPlane = (normal,coefficents)
+                bestError = error
+        except Exception as e:
+            # probably found some random error in terms of singular matrix.
+            pass
     # return the best plane.
     return bestPlane
 
