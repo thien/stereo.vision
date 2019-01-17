@@ -2,7 +2,7 @@
 
 ![Loop](media/stereovision.gif)
 
-A video of the full lap can be found at [https://www.youtube.com/watch?v=cNyDkLB4jSc](https://www.youtube.com/watch?v=cNyDkLB4jSc).
+The task was to find the plane on the images, and find the visible road. Bonus points for detecting objects on the road, and for drawing the normal of the plane. A video of the full lap can be found at [https://www.youtube.com/watch?v=cNyDkLB4jSc](https://www.youtube.com/watch?v=cNyDkLB4jSc).
 
 ## Run:
 
